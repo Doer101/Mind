@@ -1,7 +1,15 @@
 import DashboardNavbar from "@/components/dashboard-navbar";
-import { InfoIcon, UserCircle } from "lucide-react";
+import {
+  InfoIcon,
+  UserCircle,
+  BookOpen,
+  Lightbulb,
+  MessageSquare,
+} from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "../../../supabase/server";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default async function Dashboard() {
   const supabase = await createClient();
@@ -14,8 +22,6 @@ export default async function Dashboard() {
     return redirect("/sign-in");
   }
 
-
-
   return (
     <>
       <DashboardNavbar />
@@ -23,11 +29,10 @@ export default async function Dashboard() {
         <div className="container mx-auto px-4 py-8 flex flex-col gap-8">
           {/* Header Section */}
           <header className="flex flex-col gap-4">
-            <h1 className="text-3xl font-bold">Dashboard</h1>
-            <div className="bg-secondary/50 text-sm p-3 px-4 rounded-lg text-muted-foreground flex gap-2 items-center">
-              <InfoIcon size="14" />
-              <span>This is a protected page only visible to authenticated users</span>
-            </div>
+            <h1 className="text-3xl font-bold">Welcome to MindMuse</h1>
+            <p className="text-muted-foreground">
+              Your daily mindfulness and creativity companion
+            </p>
           </header>
 
           {/* User Profile Section */}
@@ -39,10 +44,61 @@ export default async function Dashboard() {
                 <p className="text-sm text-muted-foreground">{user.email}</p>
               </div>
             </div>
-            <div className="bg-muted/50 rounded-lg p-4 overflow-hidden">
+            <div className="bg-muted/50 rounded-lg p-4 overflow-hidden mb-4">
               <pre className="text-xs font-mono max-h-48 overflow-auto">
                 {JSON.stringify(user, null, 2)}
               </pre>
+            </div>
+          </section>
+
+          {/* Features Grid */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Daily Prompt */}
+            <div className="bg-card rounded-xl p-6 border shadow-sm flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <BookOpen className="text-teal-600" />
+                <h3 className="font-semibold text-lg">Daily Prompt</h3>
+              </div>
+              <p className="text-muted-foreground">
+                Explore today's mindfulness prompt and record your thoughts.
+              </p>
+              <Button className="mt-auto bg-teal-600 hover:bg-teal-700">
+                View Today's Prompt
+              </Button>
+            </div>
+
+            {/* Idea Vault */}
+            <div className="bg-card rounded-xl p-6 border shadow-sm flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <Lightbulb className="text-amber-500" />
+                <h3 className="font-semibold text-lg">Idea Vault</h3>
+              </div>
+              <p className="text-muted-foreground">
+                Store and organize your creative ideas and inspirations.
+              </p>
+              <Button
+                variant="outline"
+                className="mt-auto border-amber-500 text-amber-700 hover:bg-amber-50"
+              >
+                Open Idea Vault
+              </Button>
+            </div>
+
+            {/* AI Assistant */}
+            <div className="bg-card rounded-xl p-6 border shadow-sm flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <MessageSquare className="text-indigo-600" />
+                <h3 className="font-semibold text-lg">MuseBot</h3>
+              </div>
+              <p className="text-muted-foreground">
+                Chat with our AI assistant for mindfulness guidance and tips.
+              </p>
+              <Button
+                variant="outline"
+                className="mt-auto border-indigo-500 text-indigo-700 hover:bg-indigo-50"
+              >
+                Chat with MuseBot
+              </Button>
             </div>
           </section>
         </div>

@@ -1,10 +1,13 @@
-import { signInAction } from "@/app/actions";
+import { signInAction, signInWithGoogleAction } from "@/app/actions";
 import { FormMessage, Message } from "@/components/form-message";
 import Navbar from "@/components/navbar";
 import { SubmitButton } from "@/components/submit-button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
+import { FcGoogle } from "react-icons/fc";
 
 interface LoginProps {
   searchParams: Promise<Message>;
@@ -83,8 +86,30 @@ export default async function SignInPage({ searchParams }: LoginProps) {
               pendingText="Signing in..."
               formAction={signInAction}
             >
-              Sign in
+              Sign in with Email
             </SubmitButton>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            <form action={signInWithGoogleAction}>
+              <Button
+                type="submit"
+                variant="outline"
+                className="w-full flex items-center gap-2"
+              >
+                <FcGoogle className="h-5 w-5" />
+                Sign in with Google
+              </Button>
+            </form>
 
             <FormMessage message={message} />
           </form>

@@ -8,8 +8,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Tempo - Modern SaaS Starter",
-  description: "A modern full-stack starter template powered by Next.js",
+  title: "MindMuse - AI-Powered Mindfulness & Creativity",
+  description:
+    "Daily AI-generated mindfulness prompts and creative exercises for your mental wellness journey",
 };
 
 export default function RootLayout({
