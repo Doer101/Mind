@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Script from "next/script";
 import { TempoInit } from "@/components/tempo-init";
 import { ThemeProvider } from "@/components/theme-provider";
+import { TempoScript } from "@/components/tempo-script";
 
 const inter = Inter({ subsets: ["latin"] });
+
+// Extend Window interface to include startTime
+declare global {
+  interface Window {
+    startTime: number;
+  }
+}
 
 export const metadata: Metadata = {
   title: "MindMuse - AI-Powered Mindfulness & Creativity",
@@ -20,7 +27,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <Script src="https://api.tempolabs.ai/proxy-asset?url=https://storage.googleapis.com/tempo-public-assets/error-handling.js" />
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.startTime = ${Date.now()};`,
+          }}
+        />
+      </head>
+      <TempoScript />
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"

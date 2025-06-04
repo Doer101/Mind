@@ -1,149 +1,132 @@
 import Link from "next/link";
 import { Twitter, Instagram, Facebook } from "lucide-react";
+import { Button } from "./ui/button";
+import { Separator } from "./ui/separator";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-gray-50 border-t border-gray-100">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
-          {/* Product Column */}
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-4">MindMuse</h3>
+    <footer className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container py-8 md:py-12">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+          {/* Product Links */}
+          <div className="space-y-3">
+            <h3 className="font-medium text-lg">Product</h3>
             <ul className="space-y-2">
               <li>
-                <Link
-                  href="#features"
-                  className="text-gray-600 hover:text-teal-600"
+                <Button
+                  variant="link"
+                  className="px-0 h-auto font-normal"
+                  asChild
                 >
-                  Features
-                </Link>
+                  <Link href="#features">Features</Link>
+                </Button>
               </li>
               <li>
-                <Link
-                  href="#pricing"
-                  className="text-gray-600 hover:text-teal-600"
+                <Button
+                  variant="link"
+                  className="px-0 h-auto font-normal"
+                  asChild
                 >
-                  Premium
-                </Link>
+                  <Link href="#pricing">Premium</Link>
+                </Button>
               </li>
               <li>
-                <Link
-                  href="/dashboard"
-                  className="text-gray-600 hover:text-teal-600"
+                <Button
+                  variant="link"
+                  className="px-0 h-auto font-normal"
+                  asChild
                 >
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Mobile App
-                </Link>
+                  <Link href="/dashboard">Dashboard</Link>
+                </Button>
               </li>
             </ul>
           </div>
 
-          {/* Resources Column */}
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-4">Resources</h3>
+          {/* Resources Links */}
+          <div className="space-y-3">
+            <h3 className="font-medium text-lg">Resources</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Mindfulness Guide
-                </Link>
+                <Button
+                  variant="link"
+                  className="px-0 h-auto font-normal"
+                  asChild
+                >
+                  <Link href="/blog">Blog</Link>
+                </Button>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Blog
-                </Link>
+                <Button
+                  variant="link"
+                  className="px-0 h-auto font-normal"
+                  asChild
+                >
+                  <Link href="/prompts">Prompt Library</Link>
+                </Button>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Prompt Library
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Research
-                </Link>
+                <Button
+                  variant="link"
+                  className="px-0 h-auto font-normal"
+                  asChild
+                >
+                  <Link href="/support">Support</Link>
+                </Button>
               </li>
             </ul>
           </div>
 
-          {/* Community Column */}
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-4">Community</h3>
+          {/* Legal Links */}
+          <div className="space-y-3">
+            <h3 className="font-medium text-lg">Legal</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Forum
-                </Link>
+                <Button
+                  variant="link"
+                  className="px-0 h-auto font-normal"
+                  asChild
+                >
+                  <Link href="/privacy">Privacy</Link>
+                </Button>
               </li>
               <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Events
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Testimonials
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Support
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Legal Column */}
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-4">Legal</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Privacy
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Security
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-gray-600 hover:text-teal-600">
-                  Cookies
-                </Link>
+                <Button
+                  variant="link"
+                  className="px-0 h-auto font-normal"
+                  asChild
+                >
+                  <Link href="/terms">Terms</Link>
+                </Button>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-gray-200">
-          <div className="text-gray-600 mb-4 md:mb-0">
-            © {currentYear} MindMuse. All rights reserved.
-          </div>
+        <Separator className="my-8" />
 
-          <div className="flex space-x-6">
-            <a href="#" className="text-gray-400 hover:text-teal-500">
-              <span className="sr-only">Twitter</span>
-              <Twitter className="h-6 w-6" />
-            </a>
-            <a href="#" className="text-gray-400 hover:text-teal-500">
-              <span className="sr-only">Instagram</span>
-              <Instagram className="h-6 w-6" />
-            </a>
-            <a href="#" className="text-gray-400 hover:text-teal-500">
-              <span className="sr-only">Facebook</span>
-              <Facebook className="h-6 w-6" />
-            </a>
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-sm text-muted-foreground">
+            © {currentYear} MindMuse. All rights reserved.
+          </p>
+
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="icon" asChild>
+              <a href="#" aria-label="Twitter">
+                <Twitter className="h-4 w-4" />
+              </a>
+            </Button>
+            <Button variant="ghost" size="icon" asChild>
+              <a href="#" aria-label="Instagram">
+                <Instagram className="h-4 w-4" />
+              </a>
+            </Button>
+            <Button variant="ghost" size="icon" asChild>
+              <a href="#" aria-label="Facebook">
+                <Facebook className="h-4 w-4" />
+              </a>
+            </Button>
           </div>
         </div>
       </div>

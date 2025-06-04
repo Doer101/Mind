@@ -3,6 +3,7 @@ import { createClient } from "../../supabase/server";
 import { Button } from "./ui/button";
 import { Sparkles, UserCircle } from "lucide-react";
 import UserProfile from "./user-profile";
+import { cn } from "@/lib/utils";
 
 export default async function Navbar() {
   const supabase = createClient();
@@ -12,41 +13,29 @@ export default async function Navbar() {
   } = await (await supabase).auth.getUser();
 
   return (
-    <nav className="w-full border-b border-gray-200 bg-white py-2">
-      <div className="container mx-auto px-4 flex justify-between items-center">
-        <Link href="/" prefetch className="text-xl font-bold flex items-center">
-          <Sparkles className="w-6 h-6 text-teal-600 mr-2" />
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-teal-500 to-indigo-500">
-            MindMuse
-          </span>
+    <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-14 items-center">
+        <Link href="/" prefetch className="flex items-center space-x-2">
+          <Sparkles className="h-5 w-5 text-primary" />
+          <span className="font-bold text-lg">MindMuse</span>
         </Link>
-        <div className="flex gap-4 items-center">
+
+        <div className="flex flex-1 items-center justify-end space-x-4">
           {user ? (
             <>
-              <Link
-                href="/dashboard"
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-              >
-                <Button className="bg-teal-600 hover:bg-teal-700">
-                  Dashboard
-                </Button>
-              </Link>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/dashboard">Dashboard</Link>
+              </Button>
               <UserProfile />
             </>
           ) : (
             <>
-              <Link
-                href="/sign-in"
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-teal-600"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/sign-up"
-                className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-md hover:bg-teal-700"
-              >
-                Sign Up
-              </Link>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/sign-in">Sign In</Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link href="/sign-up">Sign Up</Link>
+              </Button>
             </>
           )}
         </div>
