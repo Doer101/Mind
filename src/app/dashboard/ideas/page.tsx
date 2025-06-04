@@ -89,10 +89,10 @@ export default function IdeasPage() {
         return;
       }
 
-      const response = await fetch("/api/ai/expand", {
+      const response = await fetch("/api/ai/idea", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: idea }),
+        body: JSON.stringify({ idea: idea }),
       });
 
       if (!response.ok) {
@@ -100,7 +100,7 @@ export default function IdeasPage() {
       }
 
       const data = await response.json();
-      setExpandedIdea(data.expansion);
+      setExpandedIdea(data.suggestions);
 
       // Store in database
       const { error: insertError } = await supabase
@@ -108,7 +108,7 @@ export default function IdeasPage() {
         .insert({
           user_id: user.id,
           title: idea.substring(0, 100) + "...",
-          description: data.expansion,
+          description: data.suggestions,
         })
         .select()
         .single();

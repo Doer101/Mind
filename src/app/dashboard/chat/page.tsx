@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Send, MessageCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2, Send, MessageCircle, Bot, User } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { cn } from "@/lib/utils";
 
 interface ChatMessage {
   id: string;
@@ -17,17 +18,25 @@ interface ChatMessage {
 
 export default function ChatPage() {
   const [message, setMessage] = useState("");
-  const [response, setResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchChatHistory();
   }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatHistory]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const fetchChatHistory = async () => {
     try {
@@ -40,7 +49,7 @@ export default function ChatPage() {
         .from("chat_messages")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: true });
 
       if (error) throw error;
       setChatHistory(data || []);
@@ -59,7 +68,6 @@ export default function ChatPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Prevent duplicate submissions
     if (isSubmitting || !message.trim()) return;
 
     setIsSubmitting(true);
@@ -71,7 +79,6 @@ export default function ChatPage() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Check if this message already exists
       const { data: existingMessage } = await supabase
         .from("chat_messages")
         .select("id")
@@ -100,7 +107,6 @@ export default function ChatPage() {
       }
 
       const data = await response.json();
-      setResponse(data.response);
 
       // Store in database
       const { error: insertError } = await supabase
@@ -115,7 +121,6 @@ export default function ChatPage() {
 
       if (insertError) {
         if (insertError.code === "23505") {
-          // Unique violation error code
           toast({
             title: "Duplicate Message",
             description:
@@ -128,17 +133,8 @@ export default function ChatPage() {
         return;
       }
 
-      // Refresh history
       await fetchChatHistory();
-
-      toast({
-        title: "Success",
-        description: "Message sent successfully",
-      });
-
-      // Clear form
       setMessage("");
-      setResponse("");
     } catch (error) {
       console.error("Error:", error);
       toast({
@@ -153,97 +149,96 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center gap-2">
+    <div className="container mx-auto px-4 py-8 h-[calc(100vh-4rem)] flex flex-col">
+      <div className="flex items-center gap-2 mb-6">
         <MessageCircle className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-semibold tracking-tight">MuseBot Chat</h1>
       </div>
 
-      <div className="space-y-6">
-        {/* Chat Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Chat with MuseBot</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Textarea
-                placeholder="Type your message here..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="min-h-[100px]"
-                disabled={isLoading}
-              />
-              <Button
-                type="submit"
-                disabled={isLoading || !message.trim() || isSubmitting}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Send Message
-                  </>
-                )}
-              </Button>
-            </form>
-
-            {response && (
-              <div className="mt-6 p-4 rounded-lg bg-muted">
-                <h3 className="font-semibold mb-2">MuseBot's Response:</h3>
-                <p className="whitespace-pre-wrap">{response}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Chat History */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Chat History</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card className="flex-1 flex flex-col">
+        <CardContent className="flex-1 flex flex-col p-4">
+          {/* Chat Messages */}
+          <div className="flex-1 overflow-y-auto space-y-4 mb-4">
             {isLoadingHistory ? (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center h-full">
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
             ) : chatHistory.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                No chat history yet
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {chatHistory.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="mb-2">
-                      <h4 className="font-medium">Your Message:</h4>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {entry.content}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">MuseBot's Response:</h4>
-                      <p className="text-sm text-muted-foreground line-clamp-3">
-                        {entry.response}
-                      </p>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {new Date(entry.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                ))}
+              <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">
+                  No messages yet. Start a conversation!
+                </p>
               </div>
+            ) : (
+              chatHistory.map((entry) => (
+                <div key={entry.id} className="space-y-4">
+                  {/* User Message */}
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="bg-primary/10 rounded-2xl rounded-tl-none px-4 py-2">
+                        <p className="text-sm">{entry.content}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(entry.created_at).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Bot Response */}
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Bot className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="bg-muted rounded-2xl rounded-tl-none px-4 py-2">
+                        <p className="text-sm whitespace-pre-wrap">
+                          {entry.response}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(entry.created_at).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
-          </CardContent>
-        </Card>
-      </div>
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Chat Input */}
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <Textarea
+              placeholder="Type your message..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="min-h-[60px] resize-none"
+              disabled={isLoading}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+            />
+            <Button
+              type="submit"
+              size="icon"
+              className="h-[60px] w-[60px]"
+              disabled={isLoading || !message.trim() || isSubmitting}
+            >
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Send className="h-5 w-5" />
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
