@@ -23,7 +23,7 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <div className="w-64 border-r bg-background p-4">
+      <div className="fixed top-0 left-0 h-screen w-64 border-r bg-background p-4">
         <nav className="grid gap-2">
           <Link
             href="/dashboard"
@@ -111,7 +111,7 @@ export default function DashboardLayout({
       </div>
 
       {/* Main Content */}
-      <div className="flex-1">{children}</div>
+      <div className="flex-1 ml-64">{children}</div>
     </div>
   );
 }

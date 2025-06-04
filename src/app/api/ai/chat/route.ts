@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/supabase/client";
+import { createClient } from "@/supabase/server";
 import { InferenceClient } from "@huggingface/inference";
 
 const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
@@ -11,11 +11,14 @@ async function callDeepSeekAPI(messages: any[]) {
       provider: "hyperbolic",
       model: "deepseek-ai/DeepSeek-R1-0528",
       messages: messages,
+      max_tokens: 500,
+      temperature: 0.7,
     });
     return chatCompletion.choices[0].message.content;
   } catch (error) {
     console.error("DeepSeek API Call Failed:", error);
-    throw error;
+    // Fallback to a simpler response if the API call fails
+    return "I apologize, but I'm having trouble connecting to my AI services right now. Please try again in a moment.";
   }
 }
 
@@ -45,8 +48,34 @@ export async function POST(request: Request) {
     const messages: ChatMsg[] = [
       {
         role: "system",
-        content:
-          "You are MuseBot, a creative and supportive AI assistant. Respond to the user's message in a helpful and encouraging way.",
+        content: `You are MuseBot, a friendly and creative AI assistant. Your responses must follow these rules:
+
+1. NEVER include your thinking process, internal monologue, or any text between <think> tags
+2. NEVER use markdown formatting or special characters
+3. Keep responses concise (2-3 sentences) and natural
+4. Use 1-2 emojis maximum, only when appropriate
+5. Be encouraging and supportive
+6. Focus on creativity, writing, and personal growth
+7. Start directly with your response, no prefixes or thinking markers
+8. Keep the tone warm and friendly
+9. Don't use multiple exclamation marks
+10. Don't include any meta-commentary about your response
+11. Don't repeat your introduction in every message
+12. Provide specific, actionable advice when asked
+13. Stay focused on the user's current topic
+14. Don't ask too many questions in one response
+15. Give concrete examples when relevant
+
+Example good response to "help me brainstorm meditation ideas":
+"Here are three simple meditation ideas to try at home:
+1. Morning sunlight meditation: Sit by a window for 5 minutes, focusing on the warmth and light
+2. Sound meditation: Use a singing bowl or calming music to guide your breath
+3. Walking meditation: Slowly pace in a quiet space, matching your steps to your breath 🌟
+
+Which of these would you like to explore further?"
+
+Example bad response (DO NOT DO THIS):
+"Hi! I'm MuseBot, your friendly creativity companion 🌟 I specialize in sparking ideas for writing, meditation, and personal growth. Let's brainstorm some meditation ideas together—what aspect interests you most?"`,
       },
       ...((chatHistory?.reverse().map((msg: any) => ({
         role: msg.role,
@@ -56,6 +85,20 @@ export async function POST(request: Request) {
     ];
 
     const response = await callDeepSeekAPI(messages);
+
+    if (!response) {
+      throw new Error("No response generated from AI");
+    }
+
+    // Clean up response - remove any thinking process or special formatting
+    const cleanResponse = response
+      .replace(/<think>[\s\S]*?<\/think>/g, "") // Remove thinking process
+      .replace(/\*\*[\s\S]*?\*\*/g, "") // Remove bold text
+      .replace(/__[\s\S]*?__/g, "") // Remove underlined text
+      .replace(/```[\s\S]*?```/g, "") // Remove code blocks
+      .replace(/^[#*->\s]+/gm, "") // Remove markdown symbols
+      .replace(/\n{3,}/g, "\n\n") // Remove excessive newlines
+      .trim();
 
     // Store the conversation
     await supabase.from("chat_messages").insert([
@@ -68,12 +111,12 @@ export async function POST(request: Request) {
       {
         user_id: user.id,
         role: "assistant",
-        content: response,
+        content: cleanResponse,
         created_at: new Date().toISOString(),
       },
     ]);
 
-    return NextResponse.json({ response });
+    return NextResponse.json({ response: cleanResponse });
   } catch (error) {
     console.error("Error in chat:", error);
     return NextResponse.json(

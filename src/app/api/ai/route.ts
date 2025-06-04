@@ -115,8 +115,25 @@ async function generateDailyPrompt() {
   const messages = [
     {
       role: "system",
-      content:
-        "Write a creative writing prompt about self-discovery and personal growth. The prompt should be inspiring and thought-provoking.",
+      content: `You are a creative writing prompt generator. Generate a daily writing prompt that is:
+1. Clear and concise
+2. Inspiring and thought-provoking
+3. Focused on personal growth or creativity
+4. Easy to understand and follow
+5. Not too long (max 2-3 sentences)
+
+IMPORTANT: Return ONLY the prompt itself. Do not include:
+- Any thinking process or <think> tags
+- Any prefixes like "Prompt:" or "Write about:"
+- Any explanations or additional text
+- Any markdown formatting
+
+Example good response:
+"Describe a moment when you felt truly understood by someone else—what words, gestures, or silences bridged the gap between you? Explore how that connection reshaped your perspective."
+
+Example bad response:
+<think>We are generating a prompt about understanding...</think>
+Prompt: Write about a moment when you felt understood...`,
     },
     {
       role: "user",
@@ -125,8 +142,37 @@ async function generateDailyPrompt() {
   ];
 
   const prompt = await callDeepSeekAPI(messages);
+
+  // Clean up the prompt
+  const cleanPrompt = prompt
+    ? prompt
+        .replace(/<think>[\s\S]*?<\/think>/g, "") // Remove thinking process
+        .replace(/^prompt:?\s*/i, "") // Remove "Prompt:" prefix
+        .replace(/^write about:?\s*/i, "") // Remove "Write about:" prefix
+        .replace(/^describe:?\s*/i, "") // Remove "Describe:" prefix
+        .replace(/^imagine:?\s*/i, "") // Remove "Imagine:" prefix
+        .replace(/^think about:?\s*/i, "") // Remove "Think about:" prefix
+        .replace(/\n/g, " ") // Remove newlines
+        .replace(/\s+/g, " ") // Normalize spaces
+        .trim()
+    : "No prompt generated";
+
+  // Save the prompt to the database
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    await supabase.from("daily_prompts").insert({
+      user_id: user.id,
+      prompt: cleanPrompt,
+      used_at: new Date().toISOString(),
+    });
+  }
+
   return {
-    prompt: prompt || "No prompt generated",
+    prompt: cleanPrompt,
   };
 }
 
