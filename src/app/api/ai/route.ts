@@ -1,10 +1,70 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createClient } from "@/supabase/server";
+import { InferenceClient } from "@huggingface/inference";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
+const client = new InferenceClient(HF_API_KEY);
+
+const PEGASUS_API_URL =
+  "https://router.huggingface.co/hf-inference/models/google/pegasus-large";
+
+async function callDeepSeekAPI(messages: any[]) {
+  try {
+    const chatCompletion = await client.chatCompletion({
+      provider: "hyperbolic",
+      model: "deepseek-ai/DeepSeek-R1-0528",
+      messages: messages,
+    });
+    return chatCompletion.choices[0].message.content;
+  } catch (error) {
+    console.error("DeepSeek API Call Failed:", error);
+    throw error;
+  }
+}
+
+async function callPegasusAPI(text: string) {
+  try {
+    const response = await fetch(PEGASUS_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${HF_API_KEY}`,
+      },
+      body: JSON.stringify({
+        inputs: text,
+        parameters: {
+          max_length: 100,
+          min_length: 10,
+          temperature: 0.7,
+          top_p: 0.95,
+          do_sample: true,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Pegasus API Error:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+      });
+      throw new Error(
+        `Pegasus API Error: ${response.status} ${response.statusText} - ${errorText}`
+      );
+    }
+
+    const data = await response.json();
+    if (Array.isArray(data) && data.length > 0) {
+      return data[0].summary_text;
+    }
+    console.error("Unexpected response format:", data);
+    return "I apologize, but I couldn't generate a proper response. Please try again.";
+  } catch (error) {
+    console.error("Pegasus API Call Failed:", error);
+    throw error;
+  }
+}
 
 export async function POST(req: Request) {
   try {
@@ -52,46 +112,28 @@ export async function POST(req: Request) {
 }
 
 async function generateDailyPrompt() {
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a creative prompt generator for writers. Generate an inspiring and thought-provoking writing prompt that encourages self-reflection and creativity.",
-      },
-      {
-        role: "user",
-        content:
-          "Give me a creative writing prompt about self-discovery and personal growth.",
-      },
-    ],
-  });
+  const messages = [
+    {
+      role: "system",
+      content:
+        "Write a creative writing prompt about self-discovery and personal growth. The prompt should be inspiring and thought-provoking.",
+    },
+    {
+      role: "user",
+      content: "Generate a creative writing prompt.",
+    },
+  ];
 
+  const prompt = await callDeepSeekAPI(messages);
   return {
-    prompt: completion.choices[0]?.message?.content || "No prompt generated",
+    prompt: prompt || "No prompt generated",
   };
 }
 
 async function generateFeedback(content: string) {
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a writing coach. Provide constructive feedback on the user's writing, focusing on style, clarity, and tone. Be encouraging and specific.",
-      },
-      {
-        role: "user",
-        content: content,
-      },
-    ],
-  });
-
+  const feedback = await callPegasusAPI(content);
   return {
-    feedback:
-      completion.choices[0]?.message?.content || "No feedback generated",
+    feedback: feedback || "No feedback generated",
   };
 }
 
@@ -100,7 +142,7 @@ async function handleChat(content: string, context: any[]) {
     {
       role: "system",
       content:
-        "You are MuseBot, a creative and supportive AI assistant focused on helping users with their creative journey, mindfulness, and personal growth. Be encouraging, insightful, and slightly playful in your responses.",
+        "You are MuseBot, a creative and supportive AI assistant. Respond to the user's message in a helpful and encouraging way.",
     },
     ...context,
     {
@@ -109,57 +151,34 @@ async function handleChat(content: string, context: any[]) {
     },
   ];
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4",
-    messages,
-  });
-
+  const response = await callDeepSeekAPI(messages);
   return {
-    response:
-      completion.choices[0]?.message?.content || "No response generated",
+    response: response || "No response generated",
   };
 }
 
 async function generateMirror(content: string) {
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a mindfulness and creativity coach. Analyze the user's journal entry and provide insights about their current state, mood, and creative potential. Offer gentle suggestions for growth.",
-      },
-      {
-        role: "user",
-        content: content,
-      },
-    ],
-  });
-
+  const reflection = await callPegasusAPI(content);
   return {
-    reflection:
-      completion.choices[0]?.message?.content || "No reflection generated",
+    reflection: reflection || "No reflection generated",
   };
 }
 
 async function expandIdea(content: string) {
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a creative brainstorming partner. Take the user's idea and suggest related concepts, potential directions, and next steps. Be imaginative but practical.",
-      },
-      {
-        role: "user",
-        content: content,
-      },
-    ],
-  });
+  const messages = [
+    {
+      role: "system",
+      content:
+        "Take this idea and suggest related concepts, potential directions, and next steps. Be imaginative but practical.",
+    },
+    {
+      role: "user",
+      content: content,
+    },
+  ];
 
+  const expansion = await callDeepSeekAPI(messages);
   return {
-    expansion:
-      completion.choices[0]?.message?.content || "No expansion generated",
+    expansion: expansion || "No expansion generated",
   };
 }

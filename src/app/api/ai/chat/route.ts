@@ -1,10 +1,23 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createClient } from "@/supabase/client";
+import { InferenceClient } from "@huggingface/inference";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
+const client = new InferenceClient(HF_API_KEY);
+
+async function callDeepSeekAPI(messages: any[]) {
+  try {
+    const chatCompletion = await client.chatCompletion({
+      provider: "hyperbolic",
+      model: "deepseek-ai/DeepSeek-R1-0528",
+      messages: messages,
+    });
+    return chatCompletion.choices[0].message.content;
+  } catch (error) {
+    console.error("DeepSeek API Call Failed:", error);
+    throw error;
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -33,7 +46,7 @@ export async function POST(request: Request) {
       {
         role: "system",
         content:
-          "You are MuseBot, a creative and supportive AI assistant focused on mindfulness, creativity, and personal growth. Provide thoughtful, encouraging responses that help users explore their ideas and feelings.",
+          "You are MuseBot, a creative and supportive AI assistant. Respond to the user's message in a helpful and encouraging way.",
       },
       ...((chatHistory?.reverse().map((msg: any) => ({
         role: msg.role,
@@ -42,14 +55,7 @@ export async function POST(request: Request) {
       { role: "user", content: message },
     ];
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages,
-      temperature: 0.7,
-      max_tokens: 500,
-    });
-
-    const response = completion.choices[0].message?.content;
+    const response = await callDeepSeekAPI(messages);
 
     // Store the conversation
     await supabase.from("chat_messages").insert([

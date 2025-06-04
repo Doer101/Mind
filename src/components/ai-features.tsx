@@ -36,7 +36,14 @@ export default function AIFeatures({
       setLoading(true);
       setError("");
 
-      const res = await fetch("/api/ai", {
+      let endpoint = "/api/ai";
+      if (type === "feedback") {
+        endpoint = "/api/ai/feedback";
+      } else if (type === "mirror") {
+        endpoint = "/api/ai/mirror";
+      }
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -123,7 +130,8 @@ export default function AIFeatures({
             className={cn(
               "mt-4 p-4 rounded-lg",
               "bg-muted/50 backdrop-blur-sm",
-              "border border-border/50"
+              "border border-border/50",
+              "max-h-[400px] overflow-y-auto"
             )}
           >
             <h4 className="font-medium mb-2 text-sm text-muted-foreground">
