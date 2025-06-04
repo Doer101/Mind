@@ -9,6 +9,15 @@ import {
   Leaf,
 } from "lucide-react";
 import { createClient } from "../../supabase/server";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -17,24 +26,24 @@ export default async function Home() {
   } = await supabase.auth.getUser();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+    <div className="min-h-screen bg-background">
       <Navbar />
       <Hero />
 
       {/* Features Section */}
-      <section className="py-24 bg-white">
+      <section className="py-24">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-4">
+          <div className="text-center mb-16 space-y-4">
+            <h2 className="text-4xl font-bold tracking-tight">
               Your Daily Mindfulness Journey
             </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
               MindMuse combines AI technology with proven mindfulness practices
               to help you develop consistent mental wellness habits.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               {
                 icon: <Sparkles className="w-6 h-6" />,
@@ -57,77 +66,89 @@ export default async function Home() {
                 description: "Watch your mindfulness practice grow over time",
               },
             ].map((feature, index) => (
-              <div
+              <Card
                 key={index}
-                className="p-6 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
+                className="border-none shadow-none hover:shadow-md transition-all duration-300"
               >
-                <div className="text-teal-600 mb-4">{feature.icon}</div>
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
-              </div>
+                <CardHeader>
+                  <div className="text-primary mb-2">{feature.icon}</div>
+                  <CardTitle className="text-xl">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-base">
+                    {feature.description}
+                  </CardDescription>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 bg-teal-600 text-white">
+      <section className="py-20 bg-muted/50">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-12 text-center">
+          <h2 className="text-4xl font-bold mb-12 text-center tracking-tight">
             How MindMuse Works
           </h2>
-          <div className="grid md:grid-cols-3 gap-8 text-center">
-            <div>
-              <div className="text-4xl font-bold mb-2">1</div>
-              <div className="text-teal-100 font-medium text-xl mb-2">
-                Receive Your Daily Prompt
-              </div>
-              <p className="text-teal-50">
-                Each day, get a new mindfulness or creativity exercise tailored
-                to your journey
-              </p>
-            </div>
-            <div>
-              <div className="text-4xl font-bold mb-2">2</div>
-              <div className="text-teal-100 font-medium text-xl mb-2">
-                Complete & Submit
-              </div>
-              <p className="text-teal-50">
-                Take a few minutes to engage with the prompt and record your
-                response
-              </p>
-            </div>
-            <div>
-              <div className="text-4xl font-bold mb-2">3</div>
-              <div className="text-teal-100 font-medium text-xl mb-2">
-                Get AI Feedback
-              </div>
-              <p className="text-teal-50">
-                Receive personalized insights and suggestions to deepen your
-                practice
-              </p>
-            </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                step: "1",
+                title: "Receive Your Daily Prompt",
+                description:
+                  "Each day, get a new mindfulness or creativity exercise tailored to your journey",
+              },
+              {
+                step: "2",
+                title: "Complete & Submit",
+                description:
+                  "Take a few minutes to engage with the prompt and record your response",
+              },
+              {
+                step: "3",
+                title: "Get AI Feedback",
+                description:
+                  "Receive personalized insights and suggestions to deepen your practice",
+              },
+            ].map((step, index) => (
+              <Card
+                key={index}
+                className="border-none bg-background/50 backdrop-blur-sm"
+              >
+                <CardHeader>
+                  <div className="text-4xl font-bold text-primary mb-2">
+                    {step.step}
+                  </div>
+                  <CardTitle className="text-xl">{step.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-base">
+                    {step.description}
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">
+      <section className="py-20">
+        <div className="container mx-auto px-4 text-center space-y-6">
+          <h2 className="text-4xl font-bold tracking-tight">
             Begin Your Mindfulness Journey Today
           </h2>
-          <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
+          <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
             Join our community of mindfulness practitioners and start developing
             a consistent mental wellness practice.
           </p>
-          <a
-            href="/dashboard"
-            className="inline-flex items-center px-6 py-3 text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors"
-          >
-            Start Free Trial
-            <ArrowUpRight className="ml-2 w-4 h-4" />
-          </a>
+          <Button size="lg" className="mt-4" asChild>
+            <a href="/dashboard" className="inline-flex items-center">
+              Start Free Trial
+              <ArrowUpRight className="ml-2 w-4 h-4" />
+            </a>
+          </Button>
         </div>
       </section>
 

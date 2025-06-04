@@ -4,6 +4,7 @@ import {
   Brain,
   PenTool,
   MessageCircle,
+  Sparkles,
 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/supabase/server";
@@ -15,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import AIFeatures from "@/components/ai-features";
 
 export default async function Dashboard() {
@@ -28,54 +30,147 @@ export default async function Dashboard() {
     return redirect("/sign-in");
   }
 
+  // Fetch today's journal entries
+  const today = new Date().toISOString().split("T")[0];
+  const { data: journalEntries, error: journalError } = await supabase
+    .from("journal_entries")
+    .select("*")
+    .eq("user_id", user.id)
+    .gte("created_at", today)
+    .order("created_at", { ascending: false });
+
+  // Fetch today's prompts
+  const { data: prompts, error: promptError } = await supabase
+    .from("daily_prompts")
+    .select("*")
+    .eq("user_id", user.id)
+    .gte("created_at", today)
+    .order("created_at", { ascending: false });
+
+  // Fetch total journal entries
+  const { count: totalEntries } = await supabase
+    .from("journal_entries")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  // Fetch user profile
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      {/* Welcome Section */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Brain className="h-8 w-8 text-primary" />
-          <h1 className="text-4xl font-bold tracking-tight">
-            Welcome to MindMuse
-          </h1>
+    <div className="flex-1 space-y-8 p-8 pt-6">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+          <p className="text-muted-foreground">
+            Welcome back{profile?.full_name ? `, ${profile.full_name}` : ""}
+          </p>
         </div>
-        <p className="text-xl text-muted-foreground">
-          Your daily mindfulness and creativity companion
-        </p>
-      </section>
+      </div>
 
-      <Separator className="my-6" />
+      <Separator />
 
-      {/* User Profile Section */}
-      <Card className="bg-card/50 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserCircle className="h-6 w-6 text-primary" />
-            User Profile
-          </CardTitle>
-          <CardDescription>Your MindMuse account information</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <UserCircle className="h-8 w-8 text-primary" />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* User Profile Card */}
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCircle className="h-5 w-5 text-primary" />
+              Profile
+            </CardTitle>
+            <CardDescription>Your MindMuse account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <UserCircle className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium">
+                  {profile?.full_name || user.email}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {totalEntries} Journal Entries
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="font-medium">{user.email}</p>
-              <p className="text-sm text-muted-foreground">MindMuse Member</p>
+          </CardContent>
+        </Card>
+
+        {/* Daily Stats Card */}
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-primary" />
+              Today's Progress
+            </CardTitle>
+            <CardDescription>Your mindfulness journey</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  Daily Prompt
+                </span>
+                <span className="text-sm font-medium">
+                  {prompts?.length ? "Completed" : "Not Started"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  Journal Entry
+                </span>
+                <span className="text-sm font-medium">
+                  {journalEntries?.length || 0} entries today
+                </span>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions Card */}
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              Quick Actions
+            </CardTitle>
+            <CardDescription>Start your mindfulness practice</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                asChild
+              >
+                <a href="/dashboard/journal/new">
+                  <PenTool className="mr-2 h-4 w-4" />
+                  Write in Journal
+                </a>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                asChild
+              >
+                <a href="/dashboard/chat">
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Chat with AI
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* AI Features Section */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-2">
-          <Brain className="h-6 w-6 text-primary" />
-          <h2 className="text-2xl font-semibold tracking-tight">AI Features</h2>
-        </div>
-
-        <div className="w-full">
-          {/* Daily Prompt */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">AI Features</h3>
+        <div className="grid gap-4">
           <AIFeatures
             type="daily-prompt"
             title="Daily Prompt"
@@ -83,7 +178,7 @@ export default async function Dashboard() {
             icon={<PenTool className="h-5 w-5" />}
           />
         </div>
-      </section>
+      </div>
     </div>
   );
 }
