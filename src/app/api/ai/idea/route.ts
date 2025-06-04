@@ -1,10 +1,23 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createClient } from "@/supabase/server";
+import { InferenceClient } from "@huggingface/inference";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
+const client = new InferenceClient(HF_API_KEY);
+
+async function callDeepSeekAPI(messages: any[]) {
+  try {
+    const chatCompletion = await client.chatCompletion({
+      provider: "hyperbolic",
+      model: "deepseek-ai/DeepSeek-R1-0528",
+      messages: messages,
+    });
+    return chatCompletion.choices[0].message.content;
+  } catch (error) {
+    console.error("DeepSeek API Call Failed:", error);
+    throw error;
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -20,24 +33,19 @@ export async function POST(request: Request) {
     const { idea } = await request.json();
 
     // Generate AI suggestions for the idea
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a creative idea enhancer. Analyze the given idea and provide: 1) Potential variations or twists, 2) Related concepts to explore, 3) Practical next steps. Keep suggestions concise and actionable.",
-        },
-        {
-          role: "user",
-          content: `Enhance this idea: ${idea}`,
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 500,
-    });
+    const messages = [
+      {
+        role: "system",
+        content:
+          "Take this idea and suggest related concepts, potential directions, and next steps. Be imaginative but practical.",
+      },
+      {
+        role: "user",
+        content: `Enhance this idea: ${idea}`,
+      },
+    ];
 
-    const suggestions = completion.choices[0].message?.content;
+    const suggestions = await callDeepSeekAPI(messages);
 
     // Store the idea and suggestions
     const { error } = await supabase.from("ideas").insert({
