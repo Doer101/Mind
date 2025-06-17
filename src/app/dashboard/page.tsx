@@ -18,6 +18,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import AIFeatures from "@/components/ai-features";
+import DashboardQuestStats from "@/components/dashboard-quest-stats";
 
 export default async function Dashboard() {
   const supabase = await createClient();
@@ -166,6 +167,8 @@ export default async function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <DashboardQuestStats />
 
       {/* AI Features Section */}
       <div className="space-y-4">

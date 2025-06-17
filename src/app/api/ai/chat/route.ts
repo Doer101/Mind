@@ -1,23 +1,77 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/supabase/server";
-import { InferenceClient } from "@huggingface/inference";
 
-const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
-const client = new InferenceClient(HF_API_KEY);
+const DEEPSEEK_API_URL = "https://ollama.discuza.in/api/generate";
+const DEEPSEEK_AUTH =
+  "Basic " +
+  Buffer.from(
+    `${process.env.DEESEEK_USERNAME}:${process.env.DEESEEK_PASSWORD}`
+  ).toString("base64");
 
 async function callDeepSeekAPI(messages: any[]) {
   try {
-    const chatCompletion = await client.chatCompletion({
-      provider: "hyperbolic",
-      model: "deepseek-ai/DeepSeek-R1-0528",
-      messages: messages,
-      max_tokens: 500,
-      temperature: 0.7,
+    const systemPrompt =
+      messages.find((msg) => msg.role === "system")?.content || "";
+    const userMessage = messages[messages.length - 1]?.content || "";
+
+    const body = {
+      model: "deepseek-r1",
+      prompt: `${systemPrompt}\nUser: ${userMessage}`,
+      stream: true,
+    };
+
+    const res = await fetch(DEEPSEEK_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: DEEPSEEK_AUTH,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     });
-    return chatCompletion.choices[0].message.content;
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`API returned ${res.status}:\n${errorText}`);
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) {
+      throw new Error("No stream reader available");
+    }
+
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let result = "";
+
+    // ✅ Improved stream reader with buffer
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      let boundary = buffer.lastIndexOf("\n");
+      if (boundary === -1) continue; // Wait for more data
+
+      const lines = buffer.slice(0, boundary).split("\n");
+      buffer = buffer.slice(boundary + 1); // Save leftover
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        try {
+          const parsed = JSON.parse(trimmed);
+          result += parsed.response || "";
+        } catch (err) {
+          console.warn("Skipping invalid JSON chunk:", trimmed);
+        }
+      }
+    }
+
+    return result.trim();
   } catch (error) {
     console.error("DeepSeek API Call Failed:", error);
-    // Fallback to a simpler response if the API call fails
     return "I apologize, but I'm having trouble connecting to my AI services right now. Please try again in a moment.";
   }
 }
@@ -35,7 +89,7 @@ export async function POST(request: Request) {
 
     const { message } = await request.json();
 
-    // Get recent chat history
+    // 🔄 Fetch chat history
     const { data: chatHistory } = await supabase
       .from("chat_messages")
       .select("*")
@@ -64,18 +118,7 @@ export async function POST(request: Request) {
 12. Provide specific, actionable advice when asked
 13. Stay focused on the user's current topic
 14. Don't ask too many questions in one response
-15. Give concrete examples when relevant
-
-Example good response to "help me brainstorm meditation ideas":
-"Here are three simple meditation ideas to try at home:
-1. Morning sunlight meditation: Sit by a window for 5 minutes, focusing on the warmth and light
-2. Sound meditation: Use a singing bowl or calming music to guide your breath
-3. Walking meditation: Slowly pace in a quiet space, matching your steps to your breath 🌟
-
-Which of these would you like to explore further?"
-
-Example bad response (DO NOT DO THIS):
-"Hi! I'm MuseBot, your friendly creativity companion 🌟 I specialize in sparking ideas for writing, meditation, and personal growth. Let's brainstorm some meditation ideas together—what aspect interests you most?"`,
+15. Give concrete examples when relevant`,
       },
       ...((chatHistory?.reverse().map((msg: any) => ({
         role: msg.role,
@@ -90,17 +133,15 @@ Example bad response (DO NOT DO THIS):
       throw new Error("No response generated from AI");
     }
 
-    // Clean up response - remove any thinking process or special formatting
     const cleanResponse = response
-      .replace(/<think>[\s\S]*?<\/think>/g, "") // Remove thinking process
-      .replace(/\*\*[\s\S]*?\*\*/g, "") // Remove bold text
-      .replace(/__[\s\S]*?__/g, "") // Remove underlined text
-      .replace(/```[\s\S]*?```/g, "") // Remove code blocks
-      .replace(/^[#*->\s]+/gm, "") // Remove markdown symbols
-      .replace(/\n{3,}/g, "\n\n") // Remove excessive newlines
+      .replace(/<think>[\s\S]*?<\/think>/g, "")
+      .replace(/\*\*[\s\S]*?\*\*/g, "")
+      .replace(/__[\s\S]*?__/g, "")
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/^[#*->\s]+/gm, "")
+      .replace(/\n{3,}/g, "\n\n")
       .trim();
 
-    // Store the conversation
     await supabase.from("chat_messages").insert([
       {
         user_id: user.id,
