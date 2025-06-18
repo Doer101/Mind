@@ -57,6 +57,23 @@ export async function POST(req: Request) {
       .update({ status: "completed" })
       .eq("id", quest_id)
       .eq("user_id", user.id);
+
+    // Fetch the quest to get xp_reward
+    const { data: quest } = await supabase
+      .from("quests")
+      .select("xp_reward")
+      .eq("id", quest_id)
+      .eq("user_id", user.id)
+      .single();
+    if (quest && quest.xp_reward) {
+      const { error: xpError } = await supabase.rpc("increment_user_xp", {
+        uid: user.id,
+        xp_amount: quest.xp_reward,
+      });
+      if (xpError) {
+        console.error("XP increment error:", xpError);
+      }
+    }
   }
 
   return NextResponse.json({ success: true });

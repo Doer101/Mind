@@ -22,9 +22,11 @@ interface Quest {
   description: string;
   difficulty: "easy" | "medium" | "hard";
   xp_reward: number;
-  type: "daily" | "weekly" | "achievement";
+  type: "daily" | "weekly" | "achievement" | "penalty";
   status: "active" | "completed";
   created_at: string;
+  deadline?: string;
+  penalty_for_quest_id?: string;
 }
 
 interface UserProgress {
@@ -49,6 +51,8 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
   >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
   const { toast } = useToast();
   const supabase = createClientComponentClient();
 
@@ -75,13 +79,30 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
       const data = await response.json();
 
       // New API returns { dailyQuests, penaltyQuests }
+      console.log("API Response:", data);
+      console.log("Daily quests:", data.dailyQuests || []);
+      console.log("Penalty quests:", data.penaltyQuests || []);
+
       setQuests(data.dailyQuests || []);
       setPenaltyQuests(data.penaltyQuests || []);
 
-      if ((data.dailyQuests || []).length === 0) {
+      if ((data.dailyQuests || []).length === 0 && !limitReached) {
         const generateResponse = await fetch(apiUrl, { method: "POST" });
 
         if (!generateResponse.ok) {
+          const errorData = await generateResponse.json();
+          if (
+            generateResponse.status === 400 &&
+            (errorData.error?.includes("daily quest limit") ||
+              errorData.error?.includes("No more quests"))
+          ) {
+            setInfo(
+              "You have completed all of today's quests! Come back tomorrow for new quests."
+            );
+            setLimitReached(true);
+            setError(null);
+            return;
+          }
           console.error(
             "Failed to generate quests:",
             generateResponse.status,
@@ -176,6 +197,17 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
     );
   }
 
+  if (info) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">All Quests Completed!</h2>
+          <p className="text-muted-foreground">{info}</p>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -236,7 +268,7 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
                     onClick={() =>
                       updateQuestProgress(
                         quest.id,
-                        Math.min(progress + 25, 100)
+                        Math.min(progress + 50, 100)
                       )
                     }
                     className="w-full"
@@ -254,7 +286,7 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
       {penaltyQuests.length > 0 && (
         <div className="mt-10">
           <h2 className="text-2xl font-bold mb-4 text-red-600">
-            Penalty Quests
+            Penalty Quests ({penaltyQuests.length})
           </h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {penaltyQuests.map((quest) => {
@@ -310,6 +342,13 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
           </div>
         </div>
       )}
+
+      {/* Debug section - show penalty quests count even if 0 
+      <div className="mt-4 p-4 bg-gray-100 rounded">
+        <p>Debug: Penalty quests count: {penaltyQuests.length}</p>
+        <p>Debug: Daily quests count: {quests.length}</p>
+      </div>
+      */}
     </div>
   );
 }

@@ -25,7 +25,7 @@ export async function GET() {
 
   // Daily completed and total
   const dailyCompleted = (dailyProgress || []).filter(q => q.completed).length;
-  const dailyTotal = (dailyProgress || []).length;
+  const dailyTotal = 9; // Always show max daily quests
 
   // Fetch all completed quests for the user
   const { data: allCompleted } = await supabase

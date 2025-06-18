@@ -119,38 +119,122 @@ export async function GET() {
 
     // Check for expired, incomplete daily quests (deadline < now, not completed)
     const now = new Date();
+    console.log("Current time:", now.toISOString());
+    
+    // Get yesterday's date (midnight)
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+    console.log("Yesterday midnight:", yesterday.toISOString());
+    
+    // Check for quests from yesterday or earlier that weren't completed
     const expiredQuests = dailyQuests.filter(q => {
       const deadline = new Date(q.deadline);
-      return deadline < now && q.status !== "completed";
+      const createdDate = new Date(q.created_at);
+      const isExpired = deadline < now;
+      const isFromYesterdayOrEarlier = createdDate < yesterday;
+      const isNotCompleted = q.status !== "completed";
+      
+      console.log(`Quest ${q.id}: deadline=${deadline.toISOString()}, created=${createdDate.toISOString()}, expired=${isExpired}, fromYesterday=${isFromYesterdayOrEarlier}, completed=${!isNotCompleted}`);
+      
+      // A quest is considered for penalty if:
+      // 1. It's expired (deadline passed) OR it's from yesterday/earlier
+      // 2. AND it's not completed
+      return (isExpired || isFromYesterdayOrEarlier) && isNotCompleted;
     });
+
+    console.log(`Found ${expiredQuests.length} expired quests`);
 
     // For each expired, incomplete quest, generate a penalty quest if not already present
     for (const expired of expiredQuests) {
       const alreadyHasPenalty = penaltyQuests.some(pq => pq.penalty_for_quest_id === expired.id);
+      console.log(`Quest ${expired.id} already has penalty: ${alreadyHasPenalty}`);
+      
       if (!alreadyHasPenalty) {
-        // Insert penalty quest
-        await supabase.from("quests").insert({
-          title: `Penalty: ${expired.title}`,
-          description: `You missed this quest: ${expired.description}. Complete this penalty to redeem yourself!`,
+        // 1. Move the missed quest to penalty type and mark as moved
+        const { error: moveError } = await supabase
+          .from("quests")
+          .update({ type: "penalty", status: "moved-to-penalty" })
+          .eq("id", expired.id)
+          .eq("user_id", user.id);
+        if (moveError) {
+          console.error("Error moving missed quest to penalty type:", moveError);
+        } else {
+          console.log(`Moved quest ${expired.id} to penalty type.`);
+        }
+
+        // 2. Generate a new penalty quest using AI
+        let penaltyTitle = `Penalty: ${expired.title}`;
+        let penaltyDescription = `You missed this quest: ${expired.description}. Complete this penalty to redeem yourself!`;
+        let penaltyType = "penalty";
+        let penaltyXP = 5;
+        let penaltyDeadline = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        try {
+          // Use AI to generate a penalty quest based on the missed quest
+          const penaltyPrompt = [
+            { role: "system", content: QUEST_GENERATION_RULES },
+            { role: "user", content: `Generate 1 creative penalty quest for a user who missed this quest: '${expired.title}' - ${expired.description}. The penalty quest should be challenging and encourage the user to redeem themselves.` },
+          ];
+          const aiResponse = await callDeepSeekAPI(penaltyPrompt);
+          const jsonMatch = aiResponse?.match(/\[\s*{[\s\S]*?}\s*\]/);
+          if (jsonMatch) {
+            const aiQuests = JSON.parse(jsonMatch[0]);
+            if (Array.isArray(aiQuests) && aiQuests.length > 0) {
+              penaltyTitle = aiQuests[0].title || penaltyTitle;
+              penaltyDescription = aiQuests[0].description || penaltyDescription;
+              penaltyType = "penalty"; // Always set as penalty
+              penaltyXP = aiQuests[0].xp || penaltyXP;
+              penaltyDeadline = new Date(now.getTime() + (aiQuests[0].deadlineHours || 24) * 60 * 60 * 1000).toISOString();
+            }
+          }
+        } catch (err) {
+          console.error("AI penalty quest generation failed, using fallback template.", err);
+        }
+        const { data: penaltyQuest, error: penaltyError } = await supabase.from("quests").insert({
+          title: penaltyTitle,
+          description: penaltyDescription,
           difficulty: "hard",
-          xp_reward: 5,
-          type: "penalty",
+          xp_reward: penaltyXP,
+          type: penaltyType,
           status: "active",
           user_id: user.id,
           progress: 0,
-          deadline: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+          deadline: penaltyDeadline,
           penalty_for_quest_id: expired.id,
+        }).select();
+
+        if (penaltyError) {
+          console.error("Error creating penalty quest:", penaltyError);
+        } else {
+          console.log("Successfully created penalty quest:", penaltyQuest);
+        }
+
+        // 3. Deduct 20 XP from the user
+        const { error: xpError } = await supabase.rpc("increment_user_xp", {
+          uid: user.id,
+          xp_amount: -20,
         });
+        if (xpError) {
+          console.error("Error deducting XP for missed quest:", xpError);
+        } else {
+          console.log("Deducted 20 XP from user for missed quest.");
+        }
       }
     }
 
     // Re-fetch penalty quests in case new ones were added
-    const { data: updatedPenaltyQuests } = await supabase
+    const { data: updatedPenaltyQuests, error: penaltyFetchError } = await supabase
       .from("quests")
       .select("*")
       .eq("user_id", user.id)
       .eq("type", "penalty")
       .eq("status", "active");
+
+    if (penaltyFetchError) {
+      console.error("Error fetching penalty quests:", penaltyFetchError);
+    }
+
+    console.log(`Returning ${dailyQuests.length} daily quests and ${(updatedPenaltyQuests || []).length} penalty quests`);
 
     return NextResponse.json({
       dailyQuests,
