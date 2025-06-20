@@ -12,6 +12,7 @@ import {
   MessageCircle,
   Menu,
   X,
+  Trophy,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -47,10 +48,15 @@ export default function DashboardLayout({
       icon: BookOpen,
     },
     {
-      href: "/dashboard/ideas",
-      label: "Ideas",
-      icon: Lightbulb,
+      href: "/dashboard/quests",
+      label: "Daily Quests",
+      icon: Trophy,
     },
+    // {
+    //   href: "/dashboard/ideas",
+    //   label: "Ideas",
+    //   icon: Lightbulb,
+    // },
     {
       href: "/dashboard/chat",
       label: "AI Chat",
@@ -64,7 +70,7 @@ export default function DashboardLayout({
     {
       href: "/dashboard/mirror",
       label: "Creativity Mirror",
-      icon: Sparkles,
+      icon: Lightbulb,
     },
   ];
 

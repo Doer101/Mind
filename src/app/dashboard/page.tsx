@@ -18,6 +18,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import AIFeatures from "@/components/ai-features";
+import DashboardQuestStats from "@/components/dashboard-quest-stats";
 
 export default async function Dashboard() {
   const supabase = await createClient();
@@ -60,6 +61,32 @@ export default async function Dashboard() {
     .eq("id", user.id)
     .single();
 
+  // Fetch user XP
+  const { data: userData } = await supabase
+    .from("users")
+    .select("user_xp")
+    .eq("id", user.id)
+    .single();
+  const userXP = userData?.user_xp || 0;
+
+  // Fetch user levels
+  const { data: levels } = await supabase
+    .from("user_levels")
+    .select("level,xp_required")
+    .order("level", { ascending: true });
+  let level = 1;
+  let nextXP = 100;
+  if (levels && levels.length > 0) {
+    for (let i = 0; i < levels.length; i++) {
+      if (userXP >= levels[i].xp_required) {
+        level = levels[i].level;
+        nextXP = levels[i + 1]?.xp_required || levels[i].xp_required;
+      } else {
+        break;
+      }
+    }
+  }
+
   return (
     <div className="flex-1 space-y-8 p-8 pt-6">
       <div className="flex items-center justify-between">
@@ -94,6 +121,9 @@ export default async function Dashboard() {
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {totalEntries} Journal Entries
+                </p>
+                <p className="text-sm font-semibold text-primary mt-1">
+                  Level {level} (XP: {userXP}/{nextXP})
                 </p>
               </div>
             </div>
@@ -167,16 +197,20 @@ export default async function Dashboard() {
         </Card>
       </div>
 
+      <DashboardQuestStats />
+
       {/* AI Features Section */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium">AI Features</h3>
         <div className="grid gap-4">
-          <AIFeatures
-            type="daily-prompt"
-            title="Daily Prompt"
-            description="Get a new creative writing prompt each day to spark your imagination."
-            icon={<PenTool className="h-5 w-5" />}
-          />
+          {/* Only show the daily prompt generation if the user has not generated today's prompt */}
+          {(!prompts || prompts.length === 0) && (
+            <AIFeatures
+              type="daily-prompt"
+              title="Daily Prompt"
+              description="Get a new creative writing prompt each day to spark your imagination."
+              icon={<PenTool className="h-5 w-5" />}
+            />
+          )}
         </div>
       </div>
     </div>

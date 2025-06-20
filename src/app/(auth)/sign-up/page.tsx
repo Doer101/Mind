@@ -109,16 +109,14 @@ export default async function Signup(props: {
                 </div>
               </div>
 
-              <form action={signInWithGoogleAction}>
-                <Button
-                  type="submit"
-                  variant="outline"
-                  className="w-full flex items-center gap-2"
-                >
-                  <FcGoogle className="h-5 w-5" />
-                  Sign up with Google
-                </Button>
-              </form>
+              <SubmitButton
+                formAction={signInWithGoogleAction}
+                variant="outline"
+                className="w-full flex items-center gap-2"
+              >
+                <FcGoogle className="h-5 w-5" />
+                Sign up with Google
+              </SubmitButton>
 
               <FormMessage message={searchParams} />
             </form>
