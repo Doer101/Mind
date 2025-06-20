@@ -9,22 +9,31 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Get today's date range
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
+  const now = new Date();
+  const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+  const endOfDay = new Date(now.setHours(23, 59, 59, 999));
 
-  // Fetch all user quest progress for today
-  const { data: dailyProgress } = await supabase
-    .from("user_quest_progress")
-    .select("*, quests!inner(created_at)")
-    .eq("user_id", user.id)
-    .gte("quests.created_at", today.toISOString())
-    .lt("quests.created_at", tomorrow.toISOString());
+  // 1. Fetch all today's daily quests (not penalty) using date range
+  const { data: todaysDailyQuests, error: questError } = await supabase
+    .from("quests")
+    .select("id")
+    .gte("for_date", startOfDay.toISOString())
+    .lte("for_date", endOfDay.toISOString())
+    .neq("type", "penalty")
+    .eq("user_id", user.id);
+  const todaysDailyQuestIds = (todaysDailyQuests || []).map(q => q.id);
 
-  // Daily completed and total
-  const dailyCompleted = (dailyProgress || []).filter(q => q.completed).length;
+  // 2. Fetch all completed progress for those quest IDs
+  let dailyCompleted = 0;
+  if (todaysDailyQuestIds.length > 0) {
+    const { data: completedProgress, error: progressError } = await supabase
+      .from("user_quest_progress")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("completed", true)
+      .in("quest_id", todaysDailyQuestIds);
+    dailyCompleted = (completedProgress || []).length;
+  }
   const dailyTotal = 9; // Always show max daily quests
 
   // Fetch all completed quests for the user

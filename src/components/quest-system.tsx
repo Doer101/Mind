@@ -68,60 +68,49 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
 
       const response = await fetch(apiUrl);
       if (!response.ok) {
-        console.error(
-          "Failed to fetch quests:",
-          response.status,
-          response.statusText
-        );
         throw new Error("Failed to fetch quests");
       }
 
       const data = await response.json();
-
-      // New API returns { dailyQuests, penaltyQuests }
-      console.log("API Response:", data);
-      console.log("Daily quests:", data.dailyQuests || []);
-      console.log("Penalty quests:", data.penaltyQuests || []);
-
       setQuests(data.dailyQuests || []);
       setPenaltyQuests(data.penaltyQuests || []);
-
-      if ((data.dailyQuests || []).length === 0 && !limitReached) {
-        const generateResponse = await fetch(apiUrl, { method: "POST" });
-
-        if (!generateResponse.ok) {
-          const errorData = await generateResponse.json();
-          if (
-            generateResponse.status === 400 &&
-            (errorData.error?.includes("daily quest limit") ||
-              errorData.error?.includes("No more quests"))
-          ) {
-            setInfo(
-              "You have completed all of today's quests! Come back tomorrow for new quests."
-            );
-            setLimitReached(true);
-            setError(null);
-            return;
-          }
-          console.error(
-            "Failed to generate quests:",
-            generateResponse.status,
-            generateResponse.statusText
-          );
-          throw new Error("Failed to generate quests");
-        }
-
-        const generatedData = await generateResponse.json();
-        setQuests(generatedData.quests || []);
-
-        toast({
-          title: "New Quests Generated!",
-          description: "Your daily quests are ready.",
-        });
-      }
     } catch (err) {
-      console.error("Error in quest operations:", err);
       setError("Failed to load quests. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateQuests = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const generateResponse = await fetch(apiUrl, { method: "POST" });
+      if (!generateResponse.ok) {
+        const errorData = await generateResponse.json();
+        if (
+          generateResponse.status === 400 &&
+          errorData.error?.includes("daily quest limit")
+        ) {
+          setInfo(
+            "You have reached the daily quest limit (9) for today. Come back tomorrow for new quests!"
+          );
+          setError(null);
+          return;
+        }
+        throw new Error(errorData.error || "Failed to generate quests");
+      }
+
+      const generatedData = await generateResponse.json();
+      setQuests(generatedData.quests || []);
+      toast({
+        title: "New Quests Generated!",
+        description: "Your daily quests are ready.",
+      });
+      fetchQuests();
+    } catch (err) {
+      setError("Failed to generate quests. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -222,12 +211,29 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
     );
   }
 
+  // Show message if no quests or penalty quests exist
+  if (quests.length === 0 && penaltyQuests.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">No Active Quests Yet!</h2>
+          <p className="text-muted-foreground mb-4">
+            No Active quest quests. Click below to get your daily quests!
+          </p>
+          <Button onClick={generateQuests} variant="default">
+            Generate Daily Quests
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Daily Quests</h1>
-        <Button onClick={fetchQuests} variant="outline">
-          Refresh Quests
+        <Button onClick={generateQuests} variant="outline">
+          Get New
         </Button>
       </div>
 
@@ -327,7 +333,7 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
                         onClick={() =>
                           updateQuestProgress(
                             quest.id,
-                            Math.min(progress + 25, 100)
+                            Math.min(progress + 50, 100)
                           )
                         }
                         className="w-full"

@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS public.quests (
     deadline timestamp with time zone NOT NULL,
     penalty_for_quest_id uuid REFERENCES public.quests(id),
     created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
-    updated_at timestamp with time zone
+    updated_at timestamp with time zone,
+    quest_set_id uuid REFERENCES public.quest_sets(id),
+    for_date date
 );
 
 -- Create user_quest_progress table
@@ -79,6 +81,7 @@ CREATE INDEX IF NOT EXISTS idx_quests_type ON public.quests(type);
 CREATE INDEX IF NOT EXISTS idx_quests_deadline ON public.quests(deadline);
 CREATE INDEX IF NOT EXISTS idx_user_quest_progress_user_id ON public.user_quest_progress(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_quest_progress_quest_id ON public.user_quest_progress(quest_id);
+CREATE INDEX IF NOT EXISTS idx_quests_quest_set_id ON public.quests(quest_set_id);
 
 -- Add user_xp to users table if not exists
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS user_xp integer NOT NULL DEFAULT 0;
@@ -149,4 +152,14 @@ RETURNS void AS $$
 BEGIN
   UPDATE public.users SET user_xp = user_xp + xp_amount WHERE id = user_id;
 END;
-$$ LANGUAGE plpgsql VOLATILE; 
+$$ LANGUAGE plpgsql VOLATILE;
+
+-- Create quest_sets table for rolling quest sets
+CREATE TABLE IF NOT EXISTS public.quest_sets (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid REFERENCES public.users(id) NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- Add for_date column to quests table
+ALTER TABLE public.quests ADD COLUMN IF NOT EXISTS for_date date; 

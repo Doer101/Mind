@@ -10,10 +10,10 @@ export const createClient = () =>
           const cookie = document.cookie
             .split("; ")
             .find((row) => row.startsWith(`${name}=`));
-          return cookie ? cookie.split("=")[1] : "";
+          return cookie ? decodeURIComponent(cookie.split("=")[1]) : "";
         },
         set(name: string, value: string, options: { path?: string; maxAge?: number }) {
-          document.cookie = `${name}=${value}; path=${options.path || "/"}; max-age=${options.maxAge || 3600}`;
+          document.cookie = `${name}=${encodeURIComponent(value)}; path=${options.path || "/"}; max-age=${options.maxAge || 3600}`;
         },
         remove(name: string, options: { path?: string }) {
           document.cookie = `${name}=; path=${options.path || "/"}; max-age=0`;

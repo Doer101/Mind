@@ -64,11 +64,15 @@ async function callDeepSeekAPI(messages: any[]) {
 }
 
 // === GENERATE QUESTS WITH AI ===
-async function generateQuests(): Promise<Quest[]> {
+async function generateQuests(preference?: string[]): Promise<Quest[]> {
   try {
+    let userPrefText = "";
+    if (preference && preference.length > 0) {
+      userPrefText = ` Only generate quests of the following type(s): ${preference.join(", ")}.`;
+    }
     const messages = [
       { role: "system", content: QUEST_GENERATION_RULES },
-      { role: "user", content: "Generate 3 creative quests for today." },
+      { role: "user", content: `Generate 3 creative quests for today.${userPrefText}` },
     ];
 
     const response = await callDeepSeekAPI(messages);
@@ -88,6 +92,7 @@ async function generateQuests(): Promise<Quest[]> {
     throw error;
   }
 }
+
 // === GET (fetch or create quests if missing) ===
 export async function GET() {
   try {
@@ -120,27 +125,14 @@ export async function GET() {
     // Check for expired, incomplete daily quests (deadline < now, not completed)
     const now = new Date();
     console.log("Current time:", now.toISOString());
-    
-    // Get yesterday's date (midnight)
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setHours(0, 0, 0, 0);
-    console.log("Yesterday midnight:", yesterday.toISOString());
-    
-    // Check for quests from yesterday or earlier that weren't completed
+
+    // Check for quests whose deadline has passed and are not completed
     const expiredQuests = dailyQuests.filter(q => {
       const deadline = new Date(q.deadline);
-      const createdDate = new Date(q.created_at);
       const isExpired = deadline < now;
-      const isFromYesterdayOrEarlier = createdDate < yesterday;
       const isNotCompleted = q.status !== "completed";
-      
-      console.log(`Quest ${q.id}: deadline=${deadline.toISOString()}, created=${createdDate.toISOString()}, expired=${isExpired}, fromYesterday=${isFromYesterdayOrEarlier}, completed=${!isNotCompleted}`);
-      
-      // A quest is considered for penalty if:
-      // 1. It's expired (deadline passed) OR it's from yesterday/earlier
-      // 2. AND it's not completed
-      return (isExpired || isFromYesterdayOrEarlier) && isNotCompleted;
+      console.log(`Quest ${q.id}: deadline=${deadline.toISOString()}, expired=${isExpired}, completed=${!isNotCompleted}`);
+      return isExpired && isNotCompleted;
     });
 
     console.log(`Found ${expiredQuests.length} expired quests`);
@@ -149,7 +141,7 @@ export async function GET() {
     for (const expired of expiredQuests) {
       const alreadyHasPenalty = penaltyQuests.some(pq => pq.penalty_for_quest_id === expired.id);
       console.log(`Quest ${expired.id} already has penalty: ${alreadyHasPenalty}`);
-      
+
       if (!alreadyHasPenalty) {
         // 1. Move the missed quest to penalty type and mark as moved
         const { error: moveError } = await supabase
@@ -201,6 +193,7 @@ export async function GET() {
           progress: 0,
           deadline: penaltyDeadline,
           penalty_for_quest_id: expired.id,
+          for_date: expired.for_date || expired.created_at.split("T")[0],
         }).select();
 
         if (penaltyError) {
@@ -258,9 +251,33 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Enforce max 9 daily quests per day
+    // Declare 'today' only once
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    // Check for incomplete penalty quests from previous days
+    const { data: oldPenaltyQuests } = await supabase
+      .from("quests")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("type", "penalty")
+      .neq("status", "completed")
+      .lt("created_at", today.toISOString());
+    if ((oldPenaltyQuests?.length || 0) > 0) {
+      return NextResponse.json({
+        error: "You must complete all previous day's penalty quests before generating new quests."
+      }, { status: 400 });
+    }
+
+    // Fetch user quest preference
+    const { data: userData } = await supabase
+      .from("users")
+      .select("quest_preference")
+      .eq("id", user.id)
+      .single();
+    const questPreference = userData?.quest_preference || [];
+
+    // Enforce max 9 daily quests per day (rolling window)
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
     const { data: todaysQuests } = await supabase
@@ -274,11 +291,33 @@ export async function POST() {
       return NextResponse.json({ error: "You have reached the daily quest limit (9)." }, { status: 400 });
     }
 
-    const generatedQuests = await generateQuests();
-
-    // Only insert up to the remaining allowed quests
+    // Always generate 3 quests per set
+    const generatedQuests = (await generateQuests(questPreference)).slice(0, 3);
     const remaining = 9 - (todaysQuests?.length || 0);
-    const questsToInsert = generatedQuests.slice(0, remaining).map(quest => ({
+    if (remaining <= 0) {
+      return NextResponse.json({ error: "No more quests can be generated today." }, { status: 400 });
+    }
+    const questsToInsert = generatedQuests.slice(0, Math.min(3, remaining));
+    if (questsToInsert.length === 0) {
+      return NextResponse.json({ error: "No more quests can be generated today." }, { status: 400 });
+    }
+
+    // Create a new quest_set
+    const { data: questSet, error: questSetError } = await supabase
+      .from("quest_sets")
+      .insert({ user_id: user.id })
+      .select()
+      .single();
+    if (questSetError || !questSet) {
+      console.error("Error creating quest set:", questSetError);
+      return NextResponse.json({ error: "Failed to create quest set" }, { status: 500 });
+    }
+
+    // Insert quests with quest_set_id and rolling 24h deadline
+    const now = new Date();
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    const questsWithSet = questsToInsert.map(quest => ({
       title: quest.title,
       description: quest.description,
       difficulty: quest.xp > 15 ? "hard" : quest.xp > 10 ? "medium" : "easy",
@@ -287,16 +326,14 @@ export async function POST() {
       status: "active",
       user_id: user.id,
       progress: 0,
-      deadline: new Date(Date.now() + quest.deadlineHours * 60 * 60 * 1000).toISOString(),
+      deadline: new Date(now.getTime() + (quest.deadlineHours || 24) * 60 * 60 * 1000).toISOString(),
+      quest_set_id: questSet.id,
+      for_date: todayDate.toISOString().split("T")[0],
     }));
-
-    if (questsToInsert.length === 0) {
-      return NextResponse.json({ error: "No more quests can be generated today." }, { status: 400 });
-    }
 
     const { data: insertedQuests, error: insertError } = await supabase
       .from("quests")
-      .insert(questsToInsert)
+      .insert(questsWithSet)
       .select();
 
     if (insertError) {
