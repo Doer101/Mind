@@ -32,6 +32,12 @@ export default function DashboardQuestStats() {
           ({questStats.dailyCompleted}/{questStats.dailyTotal}) quests completed
           today
         </p>
+        {questStats.dailyCompleted === 0 && (
+          <p className="text-black mt-2">
+            You haven't completed any daily quests today. Generate and complete
+            quests to start your streak!
+          </p>
+        )}
       </div>
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-bold mb-2">Total Quest Completion</h3>

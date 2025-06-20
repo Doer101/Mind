@@ -64,10 +64,30 @@ export default async function Dashboard() {
   // Fetch user XP
   const { data: userData } = await supabase
     .from("users")
-    .select("user_xp")
+    .select("user_xp, quest_preference")
     .eq("id", user.id)
     .single();
   const userXP = userData?.user_xp || 0;
+  const questPreference = userData?.quest_preference || [];
+
+  // If no quest preference, show a message with a link to settings
+  if (!questPreference || questPreference.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8">
+        <h2 className="text-2xl font-bold mb-4">Set Your Quest Preferences</h2>
+        <p className="mb-4 text-muted-foreground text-center">
+          You haven't selected your preferred quest types yet. Please visit the
+          settings page to choose the types of quests you want to receive.
+        </p>
+        <a
+          href="/dashboard/settings"
+          className="px-6 py-2 bg-primary text-white rounded hover:bg-primary/90 transition"
+        >
+          Go to Settings
+        </a>
+      </div>
+    );
+  }
 
   // Fetch user levels
   const { data: levels } = await supabase
