@@ -153,19 +153,19 @@ export default function FeedbackPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
+    <div className="container mx-auto px-4 py-8 space-y-6 bg-black text-white">
       <div className="flex items-center gap-2">
-        <History className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <History className="h-6 w-6 text-white" />
+        <h1 className="text-2xl font-semibold tracking-tight text-white">
           Writing Feedback
         </h1>
       </div>
 
       <div className="space-y-6">
         {/* Feedback Form */}
-        <Card>
+        <Card className="bg-black/70 border-none text-white">
           <CardHeader>
-            <CardTitle>Get Writing Feedback</CardTitle>
+            <CardTitle className="text-white">Get Writing Feedback</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -173,21 +173,22 @@ export default function FeedbackPage() {
                 placeholder="Paste your writing here..."
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                className="min-h-[200px]"
+                className="min-h-[200px] bg-black/50 text-white placeholder-white/60 border-white/20"
                 disabled={isLoading}
               />
               <Button
                 type="submit"
                 disabled={isLoading || !content.trim() || isSubmitting}
+                className="border border-white text-white hover:bg-white hover:text-black"
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
                     Generating Feedback...
                   </>
                 ) : (
                   <>
-                    <Send className="mr-2 h-4 w-4" />
+                    <Send className="mr-2 h-4 w-4 text-white" />
                     Get Feedback
                   </>
                 )}
@@ -195,26 +196,26 @@ export default function FeedbackPage() {
             </form>
 
             {feedback && (
-              <div className="mt-6 p-4 rounded-lg bg-muted">
-                <h3 className="font-semibold mb-2">Feedback:</h3>
-                <p className="whitespace-pre-wrap">{feedback}</p>
+              <div className="mt-6 p-4 rounded-lg bg-black/50 border border-white/20">
+                <h3 className="font-semibold mb-2 text-white">Feedback:</h3>
+                <p className="whitespace-pre-wrap text-white">{feedback}</p>
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Feedback History */}
-        <Card>
+        <Card className="bg-black/70 border-none text-white">
           <CardHeader>
-            <CardTitle>Feedback History</CardTitle>
+            <CardTitle className="text-white">Feedback History</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoadingHistory ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <Loader2 className="h-6 w-6 animate-spin text-white" />
               </div>
             ) : feedbackHistory.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
+              <p className="text-white/70 text-center py-8">
                 No feedback history yet
               </p>
             ) : (
@@ -222,21 +223,21 @@ export default function FeedbackPage() {
                 {feedbackHistory.map((entry) => (
                   <div
                     key={entry.id}
-                    className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                    className="p-4 rounded-lg border border-white/20 bg-black/50 hover:bg-white/10 transition-colors"
                   >
                     <div className="mb-2">
-                      <h4 className="font-medium">Your Writing:</h4>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+                      <h4 className="font-medium text-white">Your Writing:</h4>
+                      <p className="text-sm text-white/80 line-clamp-2">
                         {entry.content}
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-medium">Feedback:</h4>
-                      <p className="text-sm text-muted-foreground line-clamp-3">
+                      <h4 className="font-medium text-white">Feedback:</h4>
+                      <p className="text-sm text-white/80 line-clamp-3">
                         {entry.feedback}
                       </p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">
+                    <p className="text-xs text-white/70 mt-2">
                       {new Date(entry.created_at).toLocaleDateString()}
                     </p>
                   </div>

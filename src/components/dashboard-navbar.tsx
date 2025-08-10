@@ -68,7 +68,7 @@ export default function DashboardNavbar() {
           >
             <Sparkles className="w-6 h-6 text-teal-600 mr-2" />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-teal-500 to-indigo-500">
-              MindMuse
+              Quenalty
             </span>
           </Link>
         </div>

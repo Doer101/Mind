@@ -31,9 +31,11 @@ export default async function SettingsPage() {
   const custom = questPreference.find((t) => !DEFAULT_TYPES.includes(t)) || "";
 
   return (
-    <div className="max-w-lg mx-auto mt-16 p-8 bg-white rounded shadow">
-      <h1 className="text-2xl font-bold mb-4">Settings</h1>
-      <ClientForm selected={selected} custom={custom} />
+    <div className="container mx-auto px-4 py-8 bg-black text-white">
+      <div className="max-w-lg mx-auto mt-8 p-8 bg-black/70 text-white rounded border border-white/20 shadow-none">
+        <h1 className="text-2xl font-bold mb-4 text-white">Settings</h1>
+        <ClientForm selected={selected} custom={custom} />
+      </div>
     </div>
   );
 }

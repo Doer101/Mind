@@ -17,7 +17,7 @@ export default async function Signup(props: {
   const searchParams = await props.searchParams;
   if ("message" in searchParams) {
     return (
-      <div className="flex h-screen w-full flex-1 items-center justify-center p-4 sm:max-w-md">
+      <div className="flex h-screen w-full flex-1 items-center justify-center p-4 sm:max-w-md bg-black text-white">
         <FormMessage message={searchParams} />
       </div>
     );
@@ -25,19 +25,25 @@ export default async function Signup(props: {
 
   return (
     <>
-      <Navbar />
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8">
-        <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-sm">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-black px-4 py-8 text-white">
+        <div className="w-full max-w-md rounded-lg border border-white/20 bg-black/70 p-6 shadow-none text-white">
           <UrlProvider>
             <form className="flex flex-col space-y-6">
+              <Link
+                href="/"
+                className="self-start mb-4 text-white hover:underline"
+                aria-label="Back to Home"
+              >
+                ← Back to Home
+              </Link>
               <div className="space-y-2 text-center">
-                <h1 className="text-3xl font-semibold tracking-tight">
+                <h1 className="text-3xl font-semibold tracking-tight text-white">
                   Sign up
                 </h1>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-white/70">
                   Already have an account?{" "}
                   <Link
-                    className="text-primary font-medium hover:underline transition-all"
+                    className="text-white font-medium hover:underline transition-all"
                     href="/sign-in"
                   >
                     Sign in
@@ -47,7 +53,10 @@ export default async function Signup(props: {
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="full_name" className="text-sm font-medium">
+                  <Label
+                    htmlFor="full_name"
+                    className="text-sm font-medium text-white"
+                  >
                     Full Name
                   </Label>
                   <Input
@@ -56,12 +65,15 @@ export default async function Signup(props: {
                     type="text"
                     placeholder="John Doe"
                     required
-                    className="w-full"
+                    className="w-full bg-white text-black placeholder-black/60"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">
+                  <Label
+                    htmlFor="email"
+                    className="text-sm font-medium text-white"
+                  >
                     Email
                   </Label>
                   <Input
@@ -70,12 +82,15 @@ export default async function Signup(props: {
                     type="email"
                     placeholder="you@example.com"
                     required
-                    className="w-full"
+                    className="w-full bg-white text-black placeholder-black/60"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium">
+                  <Label
+                    htmlFor="password"
+                    className="text-sm font-medium text-white"
+                  >
                     Password
                   </Label>
                   <Input
@@ -85,7 +100,7 @@ export default async function Signup(props: {
                     placeholder="Your password"
                     minLength={6}
                     required
-                    className="w-full"
+                    className="w-full bg-white text-black placeholder-black/60"
                   />
                 </div>
               </div>
@@ -93,17 +108,17 @@ export default async function Signup(props: {
               <SubmitButton
                 formAction={signUpAction}
                 pendingText="Signing up..."
-                className="w-full"
+                className="w-full border border-white text-white hover:bg-white hover:text-black"
               >
                 Sign up with Email
               </SubmitButton>
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+                  <span className="w-full border-t border-white/20" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">
+                  <span className="bg-black/70 px-2 text-white/70">
                     Or continue with
                   </span>
                 </div>
@@ -112,7 +127,7 @@ export default async function Signup(props: {
               <SubmitButton
                 formAction={signInWithGoogleAction}
                 variant="outline"
-                className="w-full flex items-center gap-2"
+                className="w-full flex items-center gap-2 border border-white text-white bg-bleck hover:bg-white hover:text-black"
               >
                 <FcGoogle className="h-5 w-5" />
                 Sign up with Google
@@ -122,7 +137,6 @@ export default async function Signup(props: {
             </form>
           </UrlProvider>
         </div>
-        <SmtpMessage />
       </div>
     </>
   );

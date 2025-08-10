@@ -180,7 +180,7 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh] bg-black text-white">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -188,10 +188,10 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
 
   if (info) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh] bg-black text-white">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">All Quests Completed!</h2>
-          <p className="text-muted-foreground">{info}</p>
+          <p className="text-white">{info}</p>
         </div>
       </div>
     );
@@ -199,11 +199,14 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh] bg-black text-white">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Error</h2>
-          <p className="text-muted-foreground">{error}</p>
-          <Button onClick={fetchQuests} className="mt-4">
+          <p className="text-white">{error}</p>
+          <Button
+            onClick={fetchQuests}
+            className="mt-4 border border-white text-white hover:bg-white hover:text-black"
+          >
             Try Again
           </Button>
         </div>
@@ -214,13 +217,17 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
   // Show message if no quests or penalty quests exist
   if (quests.length === 0 && penaltyQuests.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh] bg-black text-white">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">No Active Quests Yet!</h2>
-          <p className="text-muted-foreground mb-4">
+          <p className="text-white mb-4">
             No Active quest quests. Click below to get your daily quests!
           </p>
-          <Button onClick={generateQuests} variant="default">
+          <Button
+            onClick={generateQuests}
+            variant="default"
+            className="border border-white text-black bg-white hover:bg-black hover:text-white"
+          >
             Generate Daily Quests
           </Button>
         </div>
@@ -229,10 +236,14 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 bg-black text-white min-h-screen">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Daily Quests</h1>
-        <Button onClick={generateQuests} variant="outline">
+        <Button
+          onClick={generateQuests}
+          variant="outline"
+          className="border border-white bg-black/70 text-white hover:bg-white hover:text-black"
+        >
           Get New
         </Button>
       </div>
@@ -243,26 +254,39 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
           const isCompleted = userProgress[quest.id]?.completed || false;
 
           return (
-            <Card key={quest.id} className={isCompleted ? "opacity-75" : ""}>
+            <Card
+              key={quest.id}
+              className={
+                isCompleted
+                  ? "opacity-75 bg-black/70 border-none text-white"
+                  : "bg-black/70 border-none text-white"
+              }
+            >
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle>{quest.title}</CardTitle>
-                    <CardDescription>{quest.description}</CardDescription>
+                    <CardTitle className="text-white">{quest.title}</CardTitle>
+                    <CardDescription className="text-white">
+                      {quest.description}
+                    </CardDescription>
                   </div>
-                  <Badge className={getDifficultyColor(quest.difficulty)}>
+                  <Badge
+                    className={
+                      getDifficultyColor(quest.difficulty) + " text-white"
+                    }
+                  >
                     {quest.difficulty}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-white">
                     <span>Progress</span>
                     <span>{progress}%</span>
                   </div>
                   <Progress value={progress} />
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-white">
                     <span>XP Reward</span>
                     <span>{quest.xp_reward} XP</span>
                   </div>
@@ -277,7 +301,7 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
                         Math.min(progress + 50, 100)
                       )
                     }
-                    className="w-full"
+                    className="w-full border border-white text-white hover:bg-white hover:text-black"
                   >
                     Update Progress
                   </Button>
@@ -301,27 +325,39 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
               return (
                 <Card
                   key={quest.id}
-                  className={isCompleted ? "opacity-75" : ""}
+                  className={
+                    isCompleted
+                      ? "opacity-75 bg-black/70 border-none text-white"
+                      : "bg-black/70 border-none text-white"
+                  }
                 >
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div>
-                        <CardTitle>{quest.title}</CardTitle>
-                        <CardDescription>{quest.description}</CardDescription>
+                        <CardTitle className="text-white">
+                          {quest.title}
+                        </CardTitle>
+                        <CardDescription className="text-white">
+                          {quest.description}
+                        </CardDescription>
                       </div>
-                      <Badge className={getDifficultyColor(quest.difficulty)}>
+                      <Badge
+                        className={
+                          getDifficultyColor(quest.difficulty) + " text-white"
+                        }
+                      >
                         {quest.difficulty}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-sm text-white">
                         <span>Progress</span>
                         <span>{progress}%</span>
                       </div>
                       <Progress value={progress} />
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-sm text-white">
                         <span>XP Reward</span>
                         <span>{quest.xp_reward} XP</span>
                       </div>
@@ -336,7 +372,7 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
                             Math.min(progress + 50, 100)
                           )
                         }
-                        className="w-full"
+                        className="w-full border border-white text-white hover:bg-white hover:text-black"
                       >
                         Update Progress
                       </Button>
