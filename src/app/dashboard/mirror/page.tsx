@@ -153,19 +153,21 @@ export default function MirrorPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
+    <div className="container mx-auto px-4 py-8 space-y-6 bg-black text-white">
       <div className="flex items-center gap-2">
-        <Eye className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <Eye className="h-6 w-6 text-white" />
+        <h1 className="text-2xl font-semibold tracking-tight text-white">
           Creativity Mirror
         </h1>
       </div>
 
       <div className="space-y-6">
         {/* Mirror Form */}
-        <Card>
+        <Card className="bg-black/70 border-none text-white">
           <CardHeader>
-            <CardTitle>Get Creative Reflection</CardTitle>
+            <CardTitle className="text-white">
+              Get Creative Reflection
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -173,21 +175,22 @@ export default function MirrorPage() {
                 placeholder="Share your creative thoughts or work..."
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                className="min-h-[200px]"
+                className="min-h-[200px] bg-black/50 text-white placeholder-white/60 border-white/20"
                 disabled={isLoading}
               />
               <Button
                 type="submit"
                 disabled={isLoading || !content.trim() || isSubmitting}
+                className="border border-white text-white hover:bg-white hover:text-black"
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
                     Generating Reflection...
                   </>
                 ) : (
                   <>
-                    <Send className="mr-2 h-4 w-4" />
+                    <Send className="mr-2 h-4 w-4 text-white" />
                     Get Reflection
                   </>
                 )}
@@ -195,26 +198,28 @@ export default function MirrorPage() {
             </form>
 
             {reflection && (
-              <div className="mt-6 p-4 rounded-lg bg-muted">
-                <h3 className="font-semibold mb-2">Your Reflection:</h3>
-                <p className="whitespace-pre-wrap">{reflection}</p>
+              <div className="mt-6 p-4 rounded-lg bg-black/50 border border-white/20">
+                <h3 className="font-semibold mb-2 text-white">
+                  Your Reflection:
+                </h3>
+                <p className="whitespace-pre-wrap text-white">{reflection}</p>
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Mirror History */}
-        <Card>
+        <Card className="bg-black/70 border-none text-white">
           <CardHeader>
-            <CardTitle>Reflection History</CardTitle>
+            <CardTitle className="text-white">Reflection History</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoadingHistory ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <Loader2 className="h-6 w-6 animate-spin text-white" />
               </div>
             ) : mirrorHistory.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
+              <p className="text-white/70 text-center py-8">
                 No reflections yet
               </p>
             ) : (
@@ -222,21 +227,21 @@ export default function MirrorPage() {
                 {mirrorHistory.map((entry) => (
                   <div
                     key={entry.id}
-                    className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                    className="p-4 rounded-lg border border-white/20 bg-black/50 hover:bg-white/10 transition-colors"
                   >
                     <div className="mb-2">
-                      <h4 className="font-medium">Your Input:</h4>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+                      <h4 className="font-medium text-white">Your Input:</h4>
+                      <p className="text-sm text-white/80 line-clamp-2">
                         {entry.content}
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-medium">Reflection:</h4>
-                      <p className="text-sm text-muted-foreground line-clamp-3">
+                      <h4 className="font-medium text-white">Reflection:</h4>
+                      <p className="text-sm text-white/80 line-clamp-3">
                         {entry.reflection}
                       </p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">
+                    <p className="text-xs text-white/70 mt-2">
                       {new Date(entry.created_at).toLocaleDateString()}
                     </p>
                   </div>

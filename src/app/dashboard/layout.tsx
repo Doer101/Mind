@@ -76,10 +76,13 @@ export default function DashboardLayout({
 
   const SidebarContent = () => (
     <>
-      <div className="flex h-14 items-center border-b px-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <span>MindMuse</span>
+      <div className="flex h-14 items-center border-b border-white/20 px-4">
+        <Link
+          href="/"
+          className="flex items-center gap-2 font-semibold text-white"
+        >
+          <Sparkles className="h-5 w-5 text-white" />
+          <span className="text-white">Quenalty</span>
         </Link>
       </div>
       <ScrollArea className="flex-1 px-2 py-4">
@@ -87,15 +90,19 @@ export default function DashboardLayout({
           {routes.map((route) => (
             <Button
               key={route.href}
-              variant={pathname === route.href ? "secondary" : "ghost"}
+              variant={"ghost"}
               className={cn(
-                "justify-start",
-                pathname === route.href && "bg-accent"
+                "justify-start text-white hover:text-white hover:bg-white/10",
+                pathname === route.href && "bg-white/10"
               )}
               asChild
             >
-              <Link href={route.href} onClick={() => setIsOpen(false)}>
-                <route.icon className="mr-2 h-4 w-4" />
+              <Link
+                href={route.href}
+                onClick={() => setIsOpen(false)}
+                className="text-white hover:text-white"
+              >
+                <route.icon className="mr-2 h-4 w-4 text-white" />
                 {route.label}
               </Link>
             </Button>
@@ -103,9 +110,17 @@ export default function DashboardLayout({
         </nav>
       </ScrollArea>
       <div className="mt-auto p-4">
-        <Button variant="ghost" className="w-full justify-start" asChild>
-          <Link href="/dashboard/settings" onClick={() => setIsOpen(false)}>
-            <Settings className="mr-2 h-4 w-4" />
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-white hover:text-white hover:bg-white/10"
+          asChild
+        >
+          <Link
+            href="/dashboard/settings"
+            onClick={() => setIsOpen(false)}
+            className="text-white hover:text-white"
+          >
+            <Settings className="mr-2 h-4 w-4 text-white" />
             Settings
           </Link>
         </Button>
@@ -114,23 +129,27 @@ export default function DashboardLayout({
   );
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-black text-white">
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex flex-col fixed inset-y-0 w-64 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="hidden md:flex flex-col fixed inset-y-0 w-64 border-r border-white/20 bg-black/70 backdrop-blur supports-[backdrop-filter]:bg-black/60">
         <SidebarContent />
       </div>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 border-b border-white/20 bg-black/70 backdrop-blur supports-[backdrop-filter]:bg-black/60">
         <div className="flex h-14 items-center px-4">
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden text-white hover:bg-white/10"
+              >
+                <Menu className="h-5 w-5 text-white" />
                 <span className="sr-only">Toggle menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0">
+            <SheetContent side="left" className="p-0 bg-black/70 text-white">
               <SheetHeader>
                 <SheetTitle asChild>
                   <VisuallyHidden>Navigation Menu</VisuallyHidden>
@@ -141,9 +160,9 @@ export default function DashboardLayout({
               </div>
             </SheetContent>
           </Sheet>
-          <div className="ml-4 flex items-center gap-2 font-semibold">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <span>MindMuse</span>
+          <div className="ml-4 flex items-center gap-2 font-semibold text-white">
+            <Sparkles className="h-5 w-5 text-white" />
+            <span className="text-white">Quenalty</span>
           </div>
         </div>
       </div>

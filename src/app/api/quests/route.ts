@@ -10,9 +10,8 @@ if (!HF_API_KEY) {
 
 const client = new InferenceClient(HF_API_KEY);
 
-
 // === AI SYSTEM PROMPT ===
-const QUEST_GENERATION_RULES = `You are a Quest Generation AI for a gamified creativity platform called MindMuse. Your job is to create engaging, bite-sized daily quests for users, inspired by the concept of Solo Leveling. Follow these exact rules strictly:
+const QUEST_GENERATION_RULES = `You are a Quest Generation AI for a gamified creativity platform called Quenalty. Your job is to create engaging, bite-sized daily quests for users, inspired by the concept of Solo Leveling. Follow these exact rules strictly:
 
 RULES:
 1. NEVER include your thinking process, reasoning, or system commentary
@@ -23,7 +22,7 @@ RULES:
 6. Only use casual language that is motivating, playful, or slightly challenging
 7. Do NOT repeat quest types in the same batch unless varied in content
 8. Each quest must be unique and feel fresh (avoid boring templates)
-9. Do NOT reference MindMuse, AI, or yourself in the tasks
+9. Do NOT reference Quenalty, AI, or yourself in the tasks
 10. Avoid overuse of emojis (max 1 emoji per quest, only if it fits)
 11. Maintain a tone that is fun, daring, and slightly mysterious, like a quest master
 12. Quests must align with creativity, self-growth, or reflection themes
@@ -72,7 +71,10 @@ async function generateQuests(preference?: string[]): Promise<Quest[]> {
     }
     const messages = [
       { role: "system", content: QUEST_GENERATION_RULES },
-      { role: "user", content: `Generate 3 creative quests for today.${userPrefText}` },
+      {
+        role: "user",
+        content: `Generate 3 creative quests for today.${userPrefText}`,
+      },
     ];
 
     const response = await callDeepSeekAPI(messages);
@@ -82,7 +84,7 @@ async function generateQuests(preference?: string[]): Promise<Quest[]> {
     const jsonMatch = response?.match(/\[\s*{[\s\S]*?}\s*\]/);
 
     if (!jsonMatch) {
-      throw new Error("No valid JSON array found in AI response."); 
+      throw new Error("No valid JSON array found in AI response.");
     }
 
     const quests: Quest[] = JSON.parse(jsonMatch[0]);
@@ -98,7 +100,10 @@ export async function GET() {
   try {
     console.log("GET /api/quests - Fetching quests");
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       console.error("Auth error:", authError);
@@ -115,23 +120,28 @@ export async function GET() {
 
     if (questError) {
       console.error("Error fetching quests:", questError);
-      return NextResponse.json({ error: "Failed to fetch quests" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to fetch quests" },
+        { status: 500 }
+      );
     }
 
     // Separate daily and penalty quests
-    const dailyQuests = (quests || []).filter(q => q.type !== "penalty");
-    const penaltyQuests = (quests || []).filter(q => q.type === "penalty");
+    const dailyQuests = (quests || []).filter((q) => q.type !== "penalty");
+    const penaltyQuests = (quests || []).filter((q) => q.type === "penalty");
 
     // Check for expired, incomplete daily quests (deadline < now, not completed)
     const now = new Date();
     console.log("Current time:", now.toISOString());
 
     // Check for quests whose deadline has passed and are not completed
-    const expiredQuests = dailyQuests.filter(q => {
+    const expiredQuests = dailyQuests.filter((q) => {
       const deadline = new Date(q.deadline);
       const isExpired = deadline < now;
       const isNotCompleted = q.status !== "completed";
-      console.log(`Quest ${q.id}: deadline=${deadline.toISOString()}, expired=${isExpired}, completed=${!isNotCompleted}`);
+      console.log(
+        `Quest ${q.id}: deadline=${deadline.toISOString()}, expired=${isExpired}, completed=${!isNotCompleted}`
+      );
       return isExpired && isNotCompleted;
     });
 
@@ -139,8 +149,12 @@ export async function GET() {
 
     // For each expired, incomplete quest, generate a penalty quest if not already present
     for (const expired of expiredQuests) {
-      const alreadyHasPenalty = penaltyQuests.some(pq => pq.penalty_for_quest_id === expired.id);
-      console.log(`Quest ${expired.id} already has penalty: ${alreadyHasPenalty}`);
+      const alreadyHasPenalty = penaltyQuests.some(
+        (pq) => pq.penalty_for_quest_id === expired.id
+      );
+      console.log(
+        `Quest ${expired.id} already has penalty: ${alreadyHasPenalty}`
+      );
 
       if (!alreadyHasPenalty) {
         // 1. Move the missed quest to penalty type and mark as moved
@@ -150,7 +164,10 @@ export async function GET() {
           .eq("id", expired.id)
           .eq("user_id", user.id);
         if (moveError) {
-          console.error("Error moving missed quest to penalty type:", moveError);
+          console.error(
+            "Error moving missed quest to penalty type:",
+            moveError
+          );
         } else {
           console.log(`Moved quest ${expired.id} to penalty type.`);
         }
@@ -160,12 +177,17 @@ export async function GET() {
         let penaltyDescription = `You missed this quest: ${expired.description}. Complete this penalty to redeem yourself!`;
         let penaltyType = "penalty";
         let penaltyXP = 5;
-        let penaltyDeadline = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        let penaltyDeadline = new Date(
+          now.getTime() + 24 * 60 * 60 * 1000
+        ).toISOString();
         try {
           // Use AI to generate a penalty quest based on the missed quest
           const penaltyPrompt = [
             { role: "system", content: QUEST_GENERATION_RULES },
-            { role: "user", content: `Generate 1 creative penalty quest for a user who missed this quest: '${expired.title}' - ${expired.description}. The penalty quest should be challenging and encourage the user to redeem themselves.` },
+            {
+              role: "user",
+              content: `Generate 1 creative penalty quest for a user who missed this quest: '${expired.title}' - ${expired.description}. The penalty quest should be challenging and encourage the user to redeem themselves.`,
+            },
           ];
           const aiResponse = await callDeepSeekAPI(penaltyPrompt);
           const jsonMatch = aiResponse?.match(/\[\s*{[\s\S]*?}\s*\]/);
@@ -173,28 +195,38 @@ export async function GET() {
             const aiQuests = JSON.parse(jsonMatch[0]);
             if (Array.isArray(aiQuests) && aiQuests.length > 0) {
               penaltyTitle = aiQuests[0].title || penaltyTitle;
-              penaltyDescription = aiQuests[0].description || penaltyDescription;
+              penaltyDescription =
+                aiQuests[0].description || penaltyDescription;
               penaltyType = "penalty"; // Always set as penalty
               penaltyXP = aiQuests[0].xp || penaltyXP;
-              penaltyDeadline = new Date(now.getTime() + (aiQuests[0].deadlineHours || 24) * 60 * 60 * 1000).toISOString();
+              penaltyDeadline = new Date(
+                now.getTime() +
+                  (aiQuests[0].deadlineHours || 24) * 60 * 60 * 1000
+              ).toISOString();
             }
           }
         } catch (err) {
-          console.error("AI penalty quest generation failed, using fallback template.", err);
+          console.error(
+            "AI penalty quest generation failed, using fallback template.",
+            err
+          );
         }
-        const { data: penaltyQuest, error: penaltyError } = await supabase.from("quests").insert({
-          title: penaltyTitle,
-          description: penaltyDescription,
-          difficulty: "hard",
-          xp_reward: penaltyXP,
-          type: penaltyType,
-          status: "active",
-          user_id: user.id,
-          progress: 0,
-          deadline: penaltyDeadline,
-          penalty_for_quest_id: expired.id,
-          for_date: expired.for_date || expired.created_at.split("T")[0],
-        }).select();
+        const { data: penaltyQuest, error: penaltyError } = await supabase
+          .from("quests")
+          .insert({
+            title: penaltyTitle,
+            description: penaltyDescription,
+            difficulty: "hard",
+            xp_reward: penaltyXP,
+            type: penaltyType,
+            status: "active",
+            user_id: user.id,
+            progress: 0,
+            deadline: penaltyDeadline,
+            penalty_for_quest_id: expired.id,
+            for_date: expired.for_date || expired.created_at.split("T")[0],
+          })
+          .select();
 
         if (penaltyError) {
           console.error("Error creating penalty quest:", penaltyError);
@@ -216,18 +248,21 @@ export async function GET() {
     }
 
     // Re-fetch penalty quests in case new ones were added
-    const { data: updatedPenaltyQuests, error: penaltyFetchError } = await supabase
-      .from("quests")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("type", "penalty")
-      .eq("status", "active");
+    const { data: updatedPenaltyQuests, error: penaltyFetchError } =
+      await supabase
+        .from("quests")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("type", "penalty")
+        .eq("status", "active");
 
     if (penaltyFetchError) {
       console.error("Error fetching penalty quests:", penaltyFetchError);
     }
 
-    console.log(`Returning ${dailyQuests.length} daily quests and ${(updatedPenaltyQuests || []).length} penalty quests`);
+    console.log(
+      `Returning ${dailyQuests.length} daily quests and ${(updatedPenaltyQuests || []).length} penalty quests`
+    );
 
     return NextResponse.json({
       dailyQuests,
@@ -235,7 +270,10 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Error in GET /api/quests:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -244,7 +282,10 @@ export async function POST() {
   try {
     console.log("POST /api/quests - Generating new quests");
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       console.error("Auth error:", authError);
@@ -264,9 +305,13 @@ export async function POST() {
       .neq("status", "completed")
       .lt("created_at", today.toISOString());
     if ((oldPenaltyQuests?.length || 0) > 0) {
-      return NextResponse.json({
-        error: "You must complete all previous day's penalty quests before generating new quests."
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error:
+            "You must complete all previous day's penalty quests before generating new quests.",
+        },
+        { status: 400 }
+      );
     }
 
     // Fetch user quest preference
@@ -288,18 +333,27 @@ export async function POST() {
       .gte("created_at", today.toISOString())
       .lt("created_at", tomorrow.toISOString());
     if ((todaysQuests?.length || 0) >= 9) {
-      return NextResponse.json({ error: "You have reached the daily quest limit (9)." }, { status: 400 });
+      return NextResponse.json(
+        { error: "You have reached the daily quest limit (9)." },
+        { status: 400 }
+      );
     }
 
     // Always generate 3 quests per set
     const generatedQuests = (await generateQuests(questPreference)).slice(0, 3);
     const remaining = 9 - (todaysQuests?.length || 0);
     if (remaining <= 0) {
-      return NextResponse.json({ error: "No more quests can be generated today." }, { status: 400 });
+      return NextResponse.json(
+        { error: "No more quests can be generated today." },
+        { status: 400 }
+      );
     }
     const questsToInsert = generatedQuests.slice(0, Math.min(3, remaining));
     if (questsToInsert.length === 0) {
-      return NextResponse.json({ error: "No more quests can be generated today." }, { status: 400 });
+      return NextResponse.json(
+        { error: "No more quests can be generated today." },
+        { status: 400 }
+      );
     }
 
     // Create a new quest_set
@@ -310,14 +364,17 @@ export async function POST() {
       .single();
     if (questSetError || !questSet) {
       console.error("Error creating quest set:", questSetError);
-      return NextResponse.json({ error: "Failed to create quest set" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to create quest set" },
+        { status: 500 }
+      );
     }
 
     // Insert quests with quest_set_id and rolling 24h deadline
     const now = new Date();
     const todayDate = new Date();
     todayDate.setHours(0, 0, 0, 0);
-    const questsWithSet = questsToInsert.map(quest => ({
+    const questsWithSet = questsToInsert.map((quest) => ({
       title: quest.title,
       description: quest.description,
       difficulty: quest.xp > 15 ? "hard" : quest.xp > 10 ? "medium" : "easy",
@@ -326,7 +383,9 @@ export async function POST() {
       status: "active",
       user_id: user.id,
       progress: 0,
-      deadline: new Date(now.getTime() + (quest.deadlineHours || 24) * 60 * 60 * 1000).toISOString(),
+      deadline: new Date(
+        now.getTime() + (quest.deadlineHours || 24) * 60 * 60 * 1000
+      ).toISOString(),
       quest_set_id: questSet.id,
       for_date: todayDate.toISOString().split("T")[0],
     }));
@@ -338,14 +397,20 @@ export async function POST() {
 
     if (insertError) {
       console.error("Error inserting quests:", insertError);
-      return NextResponse.json({ error: "Failed to insert quests" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to insert quests" },
+        { status: 500 }
+      );
     }
 
     console.log("Successfully created quests:", insertedQuests.length);
     return NextResponse.json({ quests: insertedQuests });
   } catch (error) {
     console.error("Error in POST /api/quests:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 

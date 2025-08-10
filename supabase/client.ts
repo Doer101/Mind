@@ -1,7 +1,12 @@
 import { createBrowserClient } from "@supabase/ssr";
 
-export const createClient = () =>
-  createBrowserClient(
+export const createClient = () => {
+  // Check if we're in a browser environment
+  if (typeof window === "undefined") {
+    throw new Error("Supabase client can only be used in browser environment");
+  }
+
+  return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -12,7 +17,11 @@ export const createClient = () =>
             .find((row) => row.startsWith(`${name}=`));
           return cookie ? decodeURIComponent(cookie.split("=")[1]) : "";
         },
-        set(name: string, value: string, options: { path?: string; maxAge?: number }) {
+        set(
+          name: string,
+          value: string,
+          options: { path?: string; maxAge?: number }
+        ) {
           document.cookie = `${name}=${encodeURIComponent(value)}; path=${options.path || "/"}; max-age=${options.maxAge || 3600}`;
         },
         remove(name: string, options: { path?: string }) {
@@ -21,3 +30,4 @@ export const createClient = () =>
       },
     }
   );
+};

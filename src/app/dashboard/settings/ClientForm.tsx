@@ -47,7 +47,7 @@ export default function ClientForm({
           type="text"
           name="custom"
           defaultValue={custom}
-          className="w-full border rounded px-3 py-2"
+          className="w-full border rounded px-3 py-2 bg-white text-black placeholder-black/60"
           placeholder="Enter your own type (optional)"
         />
       </div>
@@ -59,7 +59,7 @@ export default function ClientForm({
       )}
       <button
         type="submit"
-        className="w-full mt-4 bg-black text-white py-2 rounded"
+        className="w-full mt-4 bg-black/70 text-white py-2 rounded border border-white/20 hover:bg-white hover:text-black"
       >
         Save Preferences
       </button>

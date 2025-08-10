@@ -149,23 +149,25 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 h-[calc(100vh-4rem)] flex flex-col">
+    <div className="container mx-auto px-4 py-8 h-[calc(100vh-4rem)] flex flex-col bg-black text-white">
       <div className="flex items-center gap-2 mb-6">
-        <MessageCircle className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-semibold tracking-tight">MuseBot Chat</h1>
+        <MessageCircle className="h-6 w-6 text-white" />
+        <h1 className="text-2xl font-semibold tracking-tight text-white">
+          MuseBot Chat
+        </h1>
       </div>
 
-      <Card className="flex-1 flex flex-col">
+      <Card className="flex-1 flex flex-col bg-black/70 border-none text-white">
         <CardContent className="flex-1 flex flex-col p-4">
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto space-y-4 mb-4">
             {isLoadingHistory ? (
               <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <Loader2 className="h-6 w-6 animate-spin text-white" />
               </div>
             ) : chatHistory.length === 0 ? (
               <div className="flex items-center justify-center h-full">
-                <p className="text-muted-foreground">
+                <p className="text-white/70">
                   No messages yet. Start a conversation!
                 </p>
               </div>
@@ -174,14 +176,14 @@ export default function ChatPage() {
                 <div key={entry.id} className="space-y-4">
                   {/* User Message */}
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="h-4 w-4 text-primary" />
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                      <User className="h-4 w-4 text-white" />
                     </div>
                     <div className="flex-1">
-                      <div className="bg-primary/10 rounded-2xl rounded-tl-none px-4 py-2">
-                        <p className="text-sm">{entry.content}</p>
+                      <div className="bg-white/10 rounded-2xl rounded-tl-none px-4 py-2">
+                        <p className="text-sm text-white">{entry.content}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-white/70 mt-1">
                         {new Date(entry.created_at).toLocaleTimeString()}
                       </p>
                     </div>
@@ -189,16 +191,16 @@ export default function ChatPage() {
 
                   {/* Bot Response */}
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Bot className="h-4 w-4 text-primary" />
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                      <Bot className="h-4 w-4 text-white" />
                     </div>
                     <div className="flex-1">
-                      <div className="bg-muted rounded-2xl rounded-tl-none px-4 py-2">
-                        <p className="text-sm whitespace-pre-wrap">
+                      <div className="bg-white/10 rounded-2xl rounded-tl-none px-4 py-2">
+                        <p className="text-sm whitespace-pre-wrap text-white">
                           {entry.response}
                         </p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-white/70 mt-1">
                         {new Date(entry.created_at).toLocaleTimeString()}
                       </p>
                     </div>
@@ -215,7 +217,7 @@ export default function ChatPage() {
               placeholder="Type your message..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              className="min-h-[60px] resize-none"
+              className="min-h-[60px] resize-none bg-black/50 text-white placeholder-white/60 border-white/20"
               disabled={isLoading}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -227,13 +229,13 @@ export default function ChatPage() {
             <Button
               type="submit"
               size="icon"
-              className="h-[60px] w-[60px]"
+              className="h-[60px] w-[60px] border border-white text-white hover:bg-white hover:text-black"
               disabled={isLoading || !message.trim() || isSubmitting}
             >
               {isLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin text-white" />
               ) : (
-                <Send className="h-5 w-5" />
+                <Send className="h-5 w-5 text-white" />
               )}
             </Button>
           </form>

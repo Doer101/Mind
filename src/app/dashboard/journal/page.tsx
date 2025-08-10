@@ -176,18 +176,22 @@ export default function JournalPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
+    <div className="container mx-auto px-4 py-8 space-y-6 bg-black text-white">
       <div className="flex items-center gap-2">
-        <BookOpen className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-semibold tracking-tight">Journal</h1>
+        <BookOpen className="h-6 w-6 text-white" />
+        <h1 className="text-2xl font-semibold tracking-tight text-white">
+          Journal
+        </h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Journal Form */}
         <div className="lg:col-span-2 space-y-6">
-          <Card>
+          <Card className="bg-black/70 border-none text-white">
             <CardHeader>
-              <CardTitle>Write Your Journal Entry</CardTitle>
+              <CardTitle className="text-white">
+                Write Your Journal Entry
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -195,17 +199,21 @@ export default function JournalPage() {
                   placeholder="How was your day? What's on your mind?"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[300px]"
+                  className="min-h-[300px] bg-black/50 text-white placeholder-white/60 border-white/20"
                 />
-                <Button type="submit" disabled={isLoading || !content.trim()}>
+                <Button
+                  type="submit"
+                  disabled={isLoading || !content.trim()}
+                  className="border border-white text-white hover:bg-white hover:text-black"
+                >
                   {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
                       Saving Entry...
                     </>
                   ) : (
                     <>
-                      <Send className="mr-2 h-4 w-4" />
+                      <Send className="mr-2 h-4 w-4 text-white" />
                       Save Entry
                     </>
                   )}
@@ -213,26 +221,26 @@ export default function JournalPage() {
               </form>
 
               {summary && (
-                <div className="mt-6 p-4 rounded-lg bg-muted">
-                  <h3 className="font-semibold mb-2">Key Points:</h3>
-                  <p className="whitespace-pre-wrap">{summary}</p>
+                <div className="mt-6 p-4 rounded-lg bg-black/50 border border-white/20">
+                  <h3 className="font-semibold mb-2 text-white">Key Points:</h3>
+                  <p className="whitespace-pre-wrap text-white">{summary}</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
           {/* Journal History */}
-          <Card>
+          <Card className="bg-black/70 border-none text-white">
             <CardHeader>
-              <CardTitle>Journal History</CardTitle>
+              <CardTitle className="text-white">Journal History</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoadingHistory ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
                 </div>
               ) : journalHistory.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
+                <p className="text-white/70 text-center py-8">
                   No journal entries yet
                 </p>
               ) : (
@@ -240,21 +248,21 @@ export default function JournalPage() {
                   {journalHistory.map((entry) => (
                     <div
                       key={entry.id}
-                      className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                      className="p-4 rounded-lg border border-white/20 bg-black/50 hover:bg-white/10 transition-colors"
                     >
                       <div className="mb-2">
-                        <h4 className="font-medium">Entry:</h4>
-                        <p className="text-sm text-muted-foreground line-clamp-3">
+                        <h4 className="font-medium text-white">Entry:</h4>
+                        <p className="text-sm text-white/80 line-clamp-3">
                           {entry.content}
                         </p>
                       </div>
                       <div>
-                        <h4 className="font-medium">Key Points:</h4>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
+                        <h4 className="font-medium text-white">Key Points:</h4>
+                        <p className="text-sm text-white/80 line-clamp-2">
                           {entry.summary}
                         </p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">
+                      <p className="text-xs text-white/70 mt-2">
                         {format(new Date(entry.created_at), "MMMM d, yyyy")}
                       </p>
                     </div>
@@ -268,16 +276,18 @@ export default function JournalPage() {
         {/* Right Sidebar */}
         <div className="space-y-6">
           {/* Streak Card */}
-          <Card>
+          <Card className="bg-black/70 border-none text-white">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Flame className="h-5 w-5 text-orange-500" />
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Flame className="h-5 w-5 text-white" />
                 Current Streak
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-center">{streak}</div>
-              <p className="text-center text-muted-foreground mt-2">
+              <div className="text-4xl font-bold text-center text-white">
+                {streak}
+              </div>
+              <p className="text-center text-white/70 mt-2">
                 {streak === 0
                   ? "Start your journaling streak today!"
                   : streak === 1
@@ -288,17 +298,17 @@ export default function JournalPage() {
           </Card>
 
           {/* Monthly Summary Card */}
-          <Card>
+          <Card className="bg-black/70 border-none text-white">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-yellow-500" />
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Sparkles className="h-5 w-5 text-white" />
                 Monthly Insights
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-white/80">
                     Entries this month:
                   </span>
                   <span className="font-medium">
@@ -312,7 +322,7 @@ export default function JournalPage() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-white/80">
                     Average entry length:
                   </span>
                   <span className="font-medium">
@@ -325,8 +335,8 @@ export default function JournalPage() {
                     chars
                   </span>
                 </div>
-                <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">
+                <div className="pt-4 border-t border-white/20">
+                  <p className="text-sm text-white/80">
                     Keep up the great work! Your journaling journey is helping
                     you grow.
                   </p>

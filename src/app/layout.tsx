@@ -15,7 +15,7 @@ declare global {
 }
 
 export const metadata: Metadata = {
-  title: "MindMuse - AI-Powered Mindfulness & Creativity",
+  title: "Quenalty - AI-Powered Mindfulness & Creativity",
   description:
     "Daily AI-generated mindfulness prompts and creative exercises for your mental wellness journey",
 };
@@ -35,15 +35,15 @@ export default function RootLayout({
         />
       </head>
       <TempoScript />
-      <body className={inter.className}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
+      <body className={`${inter.className} bg-black/70 text-white`}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
         <TempoInit />
       </body>
     </html>

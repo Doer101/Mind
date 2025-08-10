@@ -91,23 +91,21 @@ export default function AIFeatures({
       className={cn(
         "h-full transition-all",
         "hover:shadow-lg hover:shadow-primary/5",
-        "border-2 border-border/50",
-        "bg-gradient-to-br from-background to-background/95",
+        "border-none",
+        "bg-black/70 text-white",
         "backdrop-blur-sm"
       )}
     >
       <CardHeader className="space-y-4">
         <div className="flex items-center gap-3">
           {icon && (
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              {icon}
-            </div>
+            <div className="p-2 rounded-lg bg-white/10 text-white">{icon}</div>
           )}
           <div>
-            <CardTitle className="text-2xl font-bold tracking-tight">
+            <CardTitle className="text-2xl font-bold tracking-tight text-white">
               {title}
             </CardTitle>
-            <CardDescription className="text-base mt-1">
+            <CardDescription className="text-base mt-1 text-white">
               {description}
             </CardDescription>
           </div>
@@ -119,7 +117,7 @@ export default function AIFeatures({
             placeholder="Enter your text here..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="min-h-[100px] resize-none"
+            className="min-h-[100px] resize-none bg-black/50 text-white placeholder-white/60 border-white/20"
           />
         )}
 
@@ -156,12 +154,12 @@ export default function AIFeatures({
           <Button
             onClick={handleSubmit}
             disabled={loading || !content}
-            className="w-full"
+            className="w-full border border-white text-white hover:bg-white hover:text-black"
             variant="secondary"
           >
             {loading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
                 Processing...
               </>
             ) : (
@@ -178,19 +176,19 @@ export default function AIFeatures({
           <div
             className={cn(
               "mt-4 p-6 rounded-xl",
-              "bg-gradient-to-br from-muted/50 to-muted/30",
+              "bg-black/50",
               "backdrop-blur-sm",
-              "border border-border/50",
+              "border border-white/20",
               "max-h-[400px] overflow-y-auto",
               "transition-all duration-300",
-              "hover:shadow-md hover:shadow-primary/5"
+              "hover:shadow-md hover:shadow-primary/5 text-white"
             )}
           >
-            <h4 className="font-medium mb-3 text-sm text-muted-foreground flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
+            <h4 className="font-medium mb-3 text-sm text-white flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-white" />
               Today's Creative Prompt:
             </h4>
-            <p className="whitespace-pre-wrap text-base leading-relaxed">
+            <p className="whitespace-pre-wrap text-base leading-relaxed text-white">
               {response}
             </p>
           </div>
