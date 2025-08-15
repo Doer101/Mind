@@ -20,7 +20,7 @@ export default async function QuestsPage() {
   const apiUrl = `${host}/api/quests`;
 
   return (
-    <div className="container mx-auto py-8 bg-black text-white">
+    <div className="container mx-auto py-8 bg-black bg-opacity-70 text-white">
       <QuestSystem userId={user.id} apiUrl={apiUrl} />
     </div>
   );

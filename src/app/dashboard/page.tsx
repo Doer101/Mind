@@ -109,7 +109,8 @@ export default async function Dashboard() {
   }
 
   return (
-    <div className="flex-1 space-y-8 p-8 pt-6 bg-black text-white min-h-screen">
+    // Change the main dashboard container line to:
+<div className="flex-1 space-y-8 p-8 pt-6 bg-black text-white min-h-screen overflow-x-clip">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>

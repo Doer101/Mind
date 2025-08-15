@@ -148,6 +148,8 @@ export async function GET() {
     console.log(`Found ${expiredQuests.length} expired quests`);
 
     // For each expired, incomplete quest, generate a penalty quest if not already present
+    // Penalty quests are generated independently and don't count toward daily quest limits
+    // They only block new quest generation if they're from previous days and incomplete
     for (const expired of expiredQuests) {
       const alreadyHasPenalty = penaltyQuests.some(
         (pq) => pq.penalty_for_quest_id === expired.id
@@ -211,6 +213,10 @@ export async function GET() {
             err
           );
         }
+
+        // Create penalty quest WITHOUT quest_set_id (penalty quests are independent)
+        // Penalty quests don't count toward the daily quest limit and are generated independently
+        // They only block new quest generation if they're from previous days and incomplete
         const { data: penaltyQuest, error: penaltyError } = await supabase
           .from("quests")
           .insert({
@@ -225,6 +231,7 @@ export async function GET() {
             deadline: penaltyDeadline,
             penalty_for_quest_id: expired.id,
             for_date: expired.for_date || expired.created_at.split("T")[0],
+            // Note: penalty quests don't have quest_set_id - they're independent
           })
           .select();
 
@@ -278,6 +285,9 @@ export async function GET() {
 }
 
 // === POST (generate and insert new quests) ===
+// This method generates new daily quests (3 per set, max 3 sets = 9 quests per day)
+// Penalty quests are generated independently in the GET method and don't count toward daily limits
+// Users must complete previous day's penalty quests before generating new daily quests
 export async function POST() {
   try {
     console.log("POST /api/quests - Generating new quests");
@@ -304,7 +314,15 @@ export async function POST() {
       .eq("type", "penalty")
       .neq("status", "completed")
       .lt("created_at", today.toISOString());
+
+    console.log(
+      `Found ${oldPenaltyQuests?.length || 0} incomplete penalty quests from previous days`
+    );
+
     if ((oldPenaltyQuests?.length || 0) > 0) {
+      console.log(
+        "Blocking quest generation due to incomplete penalty quests from previous days"
+      );
       return NextResponse.json(
         {
           error:
@@ -322,16 +340,21 @@ export async function POST() {
       .single();
     const questPreference = userData?.quest_preference || [];
 
-    // Enforce max 9 daily quests per day (rolling window)
+    // Enforce max 9 daily quests per day (rolling window) - EXCLUDE penalty quests
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
     const { data: todaysQuests } = await supabase
       .from("quests")
       .select("*")
       .eq("user_id", user.id)
-      .neq("type", "penalty")
+      .neq("type", "penalty") // Exclude penalty quests from daily limit
       .gte("created_at", today.toISOString())
       .lt("created_at", tomorrow.toISOString());
+
+    console.log(
+      `Found ${todaysQuests?.length || 0} daily quests today (excluding penalty quests)`
+    );
+
     if ((todaysQuests?.length || 0) >= 9) {
       return NextResponse.json(
         { error: "You have reached the daily quest limit (9)." },
@@ -342,14 +365,26 @@ export async function POST() {
     // Always generate 3 quests per set
     const generatedQuests = (await generateQuests(questPreference)).slice(0, 3);
     const remaining = 9 - (todaysQuests?.length || 0);
+
+    console.log(
+      `Generated ${generatedQuests.length} quests, remaining slots: ${remaining}`
+    );
+
     if (remaining <= 0) {
+      console.log("No remaining slots for new quests today");
       return NextResponse.json(
         { error: "No more quests can be generated today." },
         { status: 400 }
       );
     }
     const questsToInsert = generatedQuests.slice(0, Math.min(3, remaining));
+
+    console.log(
+      `Will insert ${questsToInsert.length} quests out of ${generatedQuests.length} generated`
+    );
+
     if (questsToInsert.length === 0) {
+      console.log("No quests to insert after filtering");
       return NextResponse.json(
         { error: "No more quests can be generated today." },
         { status: 400 }
@@ -369,6 +404,8 @@ export async function POST() {
         { status: 500 }
       );
     }
+
+    console.log(`Created quest set with ID: ${questSet.id}`);
 
     // Insert quests with quest_set_id and rolling 24h deadline
     const now = new Date();
@@ -403,7 +440,9 @@ export async function POST() {
       );
     }
 
-    console.log("Successfully created quests:", insertedQuests.length);
+    console.log(
+      `Successfully created ${insertedQuests?.length || 0} quests in quest set ${questSet.id}`
+    );
     return NextResponse.json({ quests: insertedQuests });
   } catch (error) {
     console.error("Error in POST /api/quests:", error);
