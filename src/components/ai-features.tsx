@@ -97,15 +97,17 @@ export default function AIFeatures({
       )}
     >
       <CardHeader className="space-y-4">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           {icon && (
-            <div className="p-2 rounded-lg bg-white/10 text-white">{icon}</div>
+            <div className="p-2 rounded-lg bg-white/10 text-white self-start sm:self-center">
+              {icon}
+            </div>
           )}
-          <div>
-            <CardTitle className="text-2xl font-bold tracking-tight text-white">
+          <div className="text-center sm:text-left">
+            <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight text-white">
               {title}
             </CardTitle>
-            <CardDescription className="text-base mt-1 text-white">
+            <CardDescription className="text-sm sm:text-base mt-1 text-white">
               {description}
             </CardDescription>
           </div>
@@ -117,7 +119,7 @@ export default function AIFeatures({
             placeholder="Enter your text here..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="min-h-[100px] resize-none bg-black/50 text-white placeholder-white/60 border-white/20"
+            className="min-h-[80px] sm:min-h-[100px] resize-none bg-black/50 text-white placeholder-white/60 border-white/20 text-sm sm:text-base"
           />
         )}
 
@@ -127,24 +129,25 @@ export default function AIFeatures({
               onClick={handleSubmit}
               disabled={loading}
               className={cn(
-                "px-8 py-6",
+                "px-4 sm:px-8 py-4 sm:py-6",
                 "bg-gradient-to-r from-primary to-primary/90",
                 "hover:from-primary/90 hover:to-primary",
-                "text-lg font-semibold",
+                "text-base sm:text-lg font-semibold",
                 "rounded-full",
                 "transition-all duration-300",
                 "hover:scale-105 hover:shadow-lg hover:shadow-primary/20",
-                "active:scale-95"
+                "active:scale-95",
+                "w-full sm:w-auto"
               )}
             >
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                   Generating...
                 </>
               ) : (
                 <>
-                  <Sparkles className="mr-2 h-5 w-5" />
+                  <Sparkles className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                   Get Today's Prompt
                 </>
               )}
@@ -154,7 +157,7 @@ export default function AIFeatures({
           <Button
             onClick={handleSubmit}
             disabled={loading || !content}
-            className="w-full border border-white text-white hover:bg-white hover:text-black"
+            className="w-full border border-white text-white hover:bg-white hover:text-black py-3 sm:py-2"
             variant="secondary"
           >
             {loading ? (
@@ -175,20 +178,22 @@ export default function AIFeatures({
         {response && (
           <div
             className={cn(
-              "mt-4 p-6 rounded-xl",
+              "mt-4 p-4 sm:p-6 rounded-xl",
               "bg-black/50",
               "backdrop-blur-sm",
               "border border-white/20",
-              "max-h-[400px] overflow-y-auto",
+              "max-h-[300px] sm:max-h-[400px] overflow-y-auto",
               "transition-all duration-300",
               "hover:shadow-md hover:shadow-primary/5 text-white"
             )}
           >
             <h4 className="font-medium mb-3 text-sm text-white flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-white" />
-              Today's Creative Prompt:
+              <span className="text-xs sm:text-sm">
+                Today's Creative Prompt:
+              </span>
             </h4>
-            <p className="whitespace-pre-wrap text-base leading-relaxed text-white">
+            <p className="whitespace-pre-wrap text-sm sm:text-base leading-relaxed text-white">
               {response}
             </p>
           </div>

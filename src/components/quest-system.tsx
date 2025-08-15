@@ -180,15 +180,15 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] bg-black text-white">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center min-h-[60vh] bg-black bg-opacity-70 text-white">
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
       </div>
     );
   }
 
   if (info) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] bg-black text-white">
+      <div className="flex items-center justify-center min-h-[60vh] bg-black bg-opacity-70 text-white">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">All Quests Completed!</h2>
           <p className="text-white">{info}</p>
@@ -199,7 +199,7 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] bg-black text-white">
+      <div className="flex items-center justify-center min-h-[60vh] bg-black bg-opacity-70 text-white">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Error</h2>
           <p className="text-white">{error}</p>
@@ -217,7 +217,7 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
   // Show message if no quests or penalty quests exist
   if (quests.length === 0 && penaltyQuests.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] bg-black text-white">
+      <div className="flex items-center justify-center min-h-[60vh] bg-black bg-opacity-70 text-white">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">No Active Quests Yet!</h2>
           <p className="text-white mb-4">
@@ -236,7 +236,7 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
   }
 
   return (
-    <div className="space-y-8 bg-black text-white min-h-screen">
+    <div className="space-y-8 bg-black bg-opacity-70 text-white min-h-screen">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Daily Quests</h1>
         <Button
@@ -258,8 +258,8 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
               key={quest.id}
               className={
                 isCompleted
-                  ? "opacity-75 bg-black/70 border-none text-white"
-                  : "bg-black/70 border-none text-white"
+                  ? "opacity-75 bg-black bg-opacity-70 border-none text-white"
+                  : "bg-black bg-opacity-70 border-none text-white"
               }
             >
               <CardHeader>
@@ -327,8 +327,8 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
                   key={quest.id}
                   className={
                     isCompleted
-                      ? "opacity-75 bg-black/70 border-none text-white"
-                      : "bg-black/70 border-none text-white"
+                      ? "opacity-75 bg-black bg-opacity-70 border-none text-white"
+                      : "bg-black bg-opacity-70 border-none text-white"
                   }
                 >
                   <CardHeader>

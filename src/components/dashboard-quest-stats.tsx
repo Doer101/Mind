@@ -25,27 +25,27 @@ export default function DashboardQuestStats() {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 bg-black text-white">
-      <div className="bg-black/70 rounded-lg shadow-none border-none p-6">
-        <h3 className="text-lg font-bold mb-2 text-white">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-6 sm:mt-8 bg-black text-white">
+      <div className="bg-black/70 rounded-lg shadow-none border-none p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-bold mb-2 text-white">
           Daily Quest Completion
         </h3>
-        <p className="text-white">
+        <p className="text-sm sm:text-base text-white">
           ({questStats.dailyCompleted}/{questStats.dailyTotal}) quests completed
           today
         </p>
         {questStats.dailyCompleted === 0 && (
-          <p className="text-white mt-2">
+          <p className="text-xs sm:text-sm text-white mt-2 leading-relaxed">
             You haven't completed any daily quests today. Generate and complete
             quests to start your streak!
           </p>
         )}
       </div>
-      <div className="bg-black/70 rounded-lg shadow-none border-none p-6">
-        <h3 className="text-lg font-bold mb-2 text-white">
+      <div className="bg-black/70 rounded-lg shadow-none border-none p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-bold mb-2 text-white">
           Total Quest Completion
         </h3>
-        <p className="text-white">
+        <p className="text-sm sm:text-base text-white">
           {questStats.totalCompleted} quests completed overall
         </p>
       </div>

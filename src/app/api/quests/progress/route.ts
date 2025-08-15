@@ -3,7 +3,10 @@ import { createClient } from "@/supabase/server";
 
 export async function GET(req: Request) {
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -23,7 +26,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -32,9 +38,8 @@ export async function POST(req: Request) {
   const body = await req.json();
   const { quest_id, progress } = body;
 
-  const { error } = await supabase
-    .from("user_quest_progress")
-    .upsert([
+  const { error } = await supabase.from("user_quest_progress").upsert(
+    [
       {
         user_id: user.id,
         quest_id,
@@ -42,9 +47,11 @@ export async function POST(req: Request) {
         completed: progress >= 100,
         completed_at: progress >= 100 ? new Date().toISOString() : null,
       },
-    ], {
+    ],
+    {
       onConflict: "user_id,quest_id",
-    });
+    }
+  );
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -52,6 +59,8 @@ export async function POST(req: Request) {
 
   // If completed, also update the quest's status
   if (progress >= 100) {
+    console.log(`Quest ${quest_id} completed, updating status to completed`);
+
     await supabase
       .from("quests")
       .update({ status: "completed" })
@@ -72,9 +81,13 @@ export async function POST(req: Request) {
       });
       if (xpError) {
         console.error("XP increment error:", xpError);
+      } else {
+        console.log(
+          `Awarded ${quest.xp_reward} XP for completing quest ${quest_id}`
+        );
       }
     }
   }
 
   return NextResponse.json({ success: true });
-} 
+}
