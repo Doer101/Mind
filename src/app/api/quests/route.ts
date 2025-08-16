@@ -11,41 +11,39 @@ if (!HF_API_KEY) {
 const client = new InferenceClient(HF_API_KEY);
 
 // === AI SYSTEM PROMPT ===
-const QUEST_GENERATION_RULES = `You are a Quest Generation AI for a gamified creativity platform called Quenalty. Your job is to create engaging, bite-sized daily quests for users, inspired by the concept of Solo Leveling. Follow these exact rules strictly:
+const QUEST_GENERATION_RULES = `You are a Quest Generation AI for a gamified creativity platform. Generate engaging, bite-sized daily quests for users. CRITICAL: ONLY OUTPUT A VALID JSON ARRAY OF QUESTS WITH NO COMMENTARY OR THINKING.
 
 RULES:
-1. NEVER include your thinking process, reasoning, or system commentary
-2. NEVER use markdown, special characters, or hashtags
-3. DO NOT generate more than 5 quests per user per day
-4. Keep each quest short (1–2 lines max) but specific and action-oriented
-5. Ensure a clear goal is included (e.g., "Write", "Create", "Reflect")
-6. Only use casual language that is motivating, playful, or slightly challenging
-7. Do NOT repeat quest types in the same batch unless varied in content
-8. Each quest must be unique and feel fresh (avoid boring templates)
-9. Do NOT reference Quenalty, AI, or yourself in the tasks
-10. Avoid overuse of emojis (max 1 emoji per quest, only if it fits)
-11. Maintain a tone that is fun, daring, and slightly mysterious, like a quest master
-12. Quests must align with creativity, self-growth, or reflection themes
-13. NEVER include "Step 1", "Step 2", or numbered instructions inside a quest
+1. CRITICAL: Output ONLY a JSON array of quests - NO thinking, reasoning, or commentary before or after
+2. NO markdown, special characters, or hashtags
+3. Generate exactly the number of quests requested (usually 3)
+4. Keep each quest short (1-2 lines) and action-oriented
+5. Include a clear goal (e.g., "Write", "Create", "Reflect")
+6. Use casual, motivating language
+7. Make each quest unique
+8. Do NOT reference the platform or yourself
+9. Maximum 1 emoji per quest (optional)
+10. Align with creativity, self-growth, or reflection themes
 
 STRUCTURE (per quest):
-- Title: [One catchy title, 3-5 words max, action-oriented]
-- Description: [One clear instruction, max 20 words, focused on journaling or creative action]
-- Type: [creative | journal | mindset | reflection | challenge]
-- XP: [value between 5 and 20]
-- DeadlineHours: [usually 24]
+- title: Catchy, 3-5 words, action-oriented
+- description: Clear instruction, max 20 words
+- type: One of [creative, journal, mindset, reflection, challenge]
+- xp: Value between 5-20
+- deadlineHours: Usually 24
 
-EXAMPLE FORMAT:
-{
-  "title": "Face Your Fear",
-  "description": "Write a short entry about something you've been avoiding and why.",
-  "type": "reflection",
-  "xp": 10,
-  "deadlineHours": 24
-}
+EXAMPLE OUTPUT:
+[
+  {
+    "title": "Face Your Fear",
+    "description": "Write about something you've been avoiding and why.",
+    "type": "reflection",
+    "xp": 10,
+    "deadlineHours": 24
+  }
+]
 
-OUTPUT:
-Always return a JSON array of 3 to 5 quests in the above format. Nothing else.`;
+OUTPUT ONLY THE JSON ARRAY. NO OTHER TEXT.`;
 
 // === CALL HYPERBOLIC DEEPSEEK API ===
 async function callDeepSeekAPI(messages: any[]) {
@@ -54,6 +52,9 @@ async function callDeepSeekAPI(messages: any[]) {
       provider: "hyperbolic",
       model: "deepseek-ai/DeepSeek-R1-0528",
       messages,
+      temperature: 0.7,
+      max_tokens: 500,
+      top_p: 0.95,
     });
     return chatCompletion.choices[0].message.content;
   } catch (error) {
@@ -67,28 +68,50 @@ async function generateQuests(preference?: string[]): Promise<Quest[]> {
   try {
     let userPrefText = "";
     if (preference && preference.length > 0) {
-      userPrefText = ` Only generate quests of the following type(s): ${preference.join(", ")}.`;
+      userPrefText = `Types: ${preference.join(", ")}. `;
     }
     const messages = [
       { role: "system", content: QUEST_GENERATION_RULES },
       {
         role: "user",
-        content: `Generate 3 creative quests for today.${userPrefText}`,
+        content: `Generate 3 quests.${userPrefText}Remember: output ONLY JSON array.`,
       },
     ];
 
     const response = await callDeepSeekAPI(messages);
-    console.log("AI Raw Response:", response);
+    // Log only first 100 chars to reduce console output
+    console.log("AI Response Preview:", response ? response.substring(0, 100) + (response.length > 100 ? "..." : "") : "No response");
 
     // Extract only the JSON array from the response using RegExp
-    const jsonMatch = response?.match(/\[\s*{[\s\S]*?}\s*\]/);
+    // First try to find a JSON array with the standard pattern
+    let jsonMatch = response?.match(/\[\s*{[\s\S]*?}\s*\]/);
 
-    if (!jsonMatch) {
-      throw new Error("No valid JSON array found in AI response.");
+    // If standard pattern fails, try to find any JSON-like structure
+    if (!jsonMatch && response) {
+      // Look for anything that resembles a JSON array
+      jsonMatch = response.match(/\[([\s\S]*?)\]/); 
+      
+      if (!jsonMatch) {
+        console.error("AI Response that failed parsing:", response);
+        throw new Error("No valid JSON array found in AI response.");
+      }
+    } else if (!jsonMatch) {
+      console.error("Empty AI response");
+      throw new Error("Empty AI response received.");
     }
-
-    const quests: Quest[] = JSON.parse(jsonMatch[0]);
-    return quests;
+    
+    try {
+       const quests: Quest[] = JSON.parse(jsonMatch[0]);
+       // Validate that we have a proper array of quests
+       if (!Array.isArray(quests)) {
+         throw new Error("Parsed result is not an array");
+       }
+       return quests;
+     } catch (parseError) {
+       console.error("JSON Parse Error:", parseError);
+       console.error("Attempted to parse:", jsonMatch[0]);
+       throw new Error(`Failed to parse JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+     }
   } catch (error) {
     console.error("Error generating quests:", error);
     throw error;
@@ -188,23 +211,39 @@ export async function GET() {
             { role: "system", content: QUEST_GENERATION_RULES },
             {
               role: "user",
-              content: `Generate 1 creative penalty quest for a user who missed this quest: '${expired.title}' - ${expired.description}. The penalty quest should be challenging and encourage the user to redeem themselves.`,
+              content: `Generate 1 penalty quest for: '${expired.title}' - ${expired.description}. Make it challenging. Output ONLY JSON array.`,
             },
           ];
           const aiResponse = await callDeepSeekAPI(penaltyPrompt);
-          const jsonMatch = aiResponse?.match(/\[\s*{[\s\S]*?}\s*\]/);
+          // Log only first 100 chars to reduce console output
+          console.log("Penalty AI Response Preview:", aiResponse ? aiResponse.substring(0, 100) + (aiResponse.length > 100 ? "..." : "") : "No response");
+          // First try to find a JSON array with the standard pattern
+          let jsonMatch = aiResponse?.match(/\[\s*{[\s\S]*?}\s*\]/);
+          
+          // If standard pattern fails, try to find any JSON-like structure
+          if (!jsonMatch && aiResponse) {
+            // Look for anything that resembles a JSON array
+            jsonMatch = aiResponse.match(/\[([\s\S]*?)\]/);
+          }
+          
           if (jsonMatch) {
-            const aiQuests = JSON.parse(jsonMatch[0]);
-            if (Array.isArray(aiQuests) && aiQuests.length > 0) {
-              penaltyTitle = aiQuests[0].title || penaltyTitle;
-              penaltyDescription =
-                aiQuests[0].description || penaltyDescription;
-              penaltyType = "penalty"; // Always set as penalty
-              penaltyXP = aiQuests[0].xp || penaltyXP;
-              penaltyDeadline = new Date(
-                now.getTime() +
-                  (aiQuests[0].deadlineHours || 24) * 60 * 60 * 1000
-              ).toISOString();
+            try {
+              const aiQuests = JSON.parse(jsonMatch[0]);
+              if (Array.isArray(aiQuests) && aiQuests.length > 0) {
+                penaltyTitle = aiQuests[0].title || penaltyTitle;
+                penaltyDescription =
+                  aiQuests[0].description || penaltyDescription;
+                penaltyType = "penalty"; // Always set as penalty
+                penaltyXP = aiQuests[0].xp || penaltyXP;
+                penaltyDeadline = new Date(
+                  now.getTime() +
+                    (aiQuests[0].deadlineHours || 24) * 60 * 60 * 1000
+                ).toISOString();
+              }
+            } catch (parseError) {
+              console.error("Penalty JSON Parse Error:", parseError);
+              console.error("Attempted to parse:", jsonMatch[0]);
+              // Continue with default values if parsing fails
             }
           }
         } catch (err) {
@@ -255,13 +294,14 @@ export async function GET() {
     }
 
     // Re-fetch penalty quests in case new ones were added
+    // Include both active penalty quests and quests that were moved to penalty status
     const { data: updatedPenaltyQuests, error: penaltyFetchError } =
       await supabase
         .from("quests")
         .select("*")
         .eq("user_id", user.id)
         .eq("type", "penalty")
-        .eq("status", "active");
+        .in("status", ["active", "moved-to-penalty"]);
 
     if (penaltyFetchError) {
       console.error("Error fetching penalty quests:", penaltyFetchError);
@@ -283,6 +323,8 @@ export async function GET() {
     );
   }
 }
+
+
 
 // === POST (generate and insert new quests) ===
 // This method generates new daily quests (3 per set, max 3 sets = 9 quests per day)
