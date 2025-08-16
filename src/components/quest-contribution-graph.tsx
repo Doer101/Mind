@@ -10,7 +10,7 @@ import {
 } from "./ui/card";
 import { Button } from "./ui/button";
 import { createClient } from "../../supabase/client";
-import { Trophy, Calendar, TrendingUp, Plus } from "lucide-react";
+import { Trophy, Plus } from "lucide-react";
 import Link from "next/link";
 
 interface QuestContribution {
@@ -48,7 +48,14 @@ export default function QuestContributionGraph({
     new Date().getFullYear()
   );
 
-  // Date helpers for week-aligned ranges (weeks start on Sunday)
+  // ✅ Helper for local date normalization
+  const normalizeToLocalDateStr = (date: Date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d.toLocaleDateString("en-CA"); // YYYY-MM-DD
+  };
+
+  // Date helpers
   const startOfWeek = (date: Date, weekStartsOn: number = 0) => {
     const d = new Date(date);
     const day = (d.getDay() - weekStartsOn + 7) % 7;
@@ -70,7 +77,7 @@ export default function QuestContributionGraph({
     return addDays(s, 6);
   };
 
-  // Initialize Supabase client on mount
+  // Initialize Supabase
   useEffect(() => {
     try {
       const client = createClient();
@@ -87,25 +94,20 @@ export default function QuestContributionGraph({
   }, [userId, supabase, selectedYear]);
 
   const fetchQuestContributions = async () => {
-    if (!supabase) {
-      console.log("Supabase client not ready yet");
-      return;
-    }
+    if (!supabase) return;
 
     try {
       setLoading(true);
 
-      // Compute a week-aligned 52-week window for the selected year
       const today = new Date();
       const isCurrentYear = selectedYear === today.getFullYear();
-      const endDate = isCurrentYear ? today : new Date(selectedYear, 11, 31); // Dec 31 of selected year
+      const endDate = isCurrentYear ? today : new Date(selectedYear, 11, 31);
       const endWeek = endOfWeek(endDate, 0);
-      const startWeek = addWeeks(startOfWeek(endWeek, 0), -51); // 52 weeks total
+      const startWeek = addWeeks(startOfWeek(endWeek, 0), -51);
 
       const dateFromISO = startWeek.toISOString();
-      const dateToISO = addDays(endWeek, 1).toISOString(); // inclusive upper bound
+      const dateToISO = addDays(endWeek, 1).toISOString();
 
-      // Try to fetch completed quests with join
       let { data: completedQuests, error } = (await supabase
         .from("user_quest_progress")
         .select(
@@ -127,14 +129,7 @@ export default function QuestContributionGraph({
         error: any;
       };
 
-      // If join fails, try a simpler approach
       if (error) {
-        console.log(
-          "Join query failed, trying alternative approach:",
-          error.message
-        );
-
-        // Get completed quest progress
         const { data: progressData, error: progressError } = (await supabase
           .from("user_quest_progress")
           .select("completed_at, quest_id")
@@ -147,78 +142,43 @@ export default function QuestContributionGraph({
           error: any;
         };
 
-        if (progressError) {
-          console.error("Progress query also failed:", progressError);
-          return;
-        }
+        if (progressError) return;
 
-        // Get quest details for completed quests
         if (progressData && progressData.length > 0) {
-          const questIds = progressData.map(
-            (p: { completed_at: string; quest_id: string }) => p.quest_id
-          );
-          const { data: questsData, error: questsError } = (await supabase
+          const questIds = progressData.map((p) => p.quest_id);
+          const { data: questsData } = (await supabase
             .from("quests")
             .select("id, difficulty, xp_reward")
             .in("id", questIds)) as {
             data:
               | { id: string; difficulty: string; xp_reward: number }[]
               | null;
-            error: any;
           };
 
-          if (questsError) {
-            console.error("Quests query failed:", questsError);
-            return;
-          }
-
-          // Combine the data
           completedQuests = progressData
-            .map((progress: { completed_at: string; quest_id: string }) => {
-              const quest = questsData?.find(
-                (q: { id: string; difficulty: string; xp_reward: number }) =>
-                  q.id === progress.quest_id
-              );
+            .map((progress) => {
+              const quest = questsData?.find((q) => q.id === progress.quest_id);
               if (quest) {
                 return {
                   completed_at: progress.completed_at,
                   quests: {
                     difficulty: quest.difficulty,
                     xp_reward: quest.xp_reward,
-                  } as QuestData,
+                  },
                 } as CompletedQuest;
               }
               return null;
             })
-            .filter(
-              (item: CompletedQuest | null): item is CompletedQuest =>
-                item !== null
-            ); // Only include items with quest data
-
-          error = null; // Reset error since we succeeded
+            .filter((item): item is CompletedQuest => item !== null);
         }
       }
 
-      if (error) {
-        console.error("Error fetching quests:", error);
-        console.error(
-          "Error details:",
-          error.message,
-          error.details,
-          error.hint
-        );
-        return;
-      }
-
-      console.log("Fetched completed quests:", completedQuests?.length || 0);
-
-      // Process quests into daily contributions
+      // Process quests
       const contributionMap = new Map<string, QuestContribution>();
 
-      // Initialize all dates for a fixed 52-week range (7 * 52 = 364 days)
       for (let i = 0; i < 364; i++) {
         const date = addDays(startWeek, i);
-        const dateStr = date.toISOString().split("T")[0];
+        const dateStr = normalizeToLocalDateStr(date);
         contributionMap.set(dateStr, {
           date: dateStr,
           easy: 0,
@@ -228,22 +188,18 @@ export default function QuestContributionGraph({
         });
       }
 
-      // Count quests by date and difficulty
-      completedQuests?.forEach((questProgress: CompletedQuest) => {
+      completedQuests?.forEach((questProgress) => {
         if (questProgress.completed_at && questProgress.quests) {
-          const dateStr = questProgress.completed_at.split("T")[0];
+          const dateStr = normalizeToLocalDateStr(
+            new Date(questProgress.completed_at)
+          );
           const existing = contributionMap.get(dateStr);
 
           if (existing) {
-            // Determine difficulty based on XP reward
             let difficulty: "easy" | "medium" | "hard";
-            if (questProgress.quests.xp_reward <= 8) {
-              difficulty = "easy";
-            } else if (questProgress.quests.xp_reward <= 15) {
-              difficulty = "medium";
-            } else {
-              difficulty = "hard";
-            }
+            if (questProgress.quests.xp_reward <= 8) difficulty = "easy";
+            else if (questProgress.quests.xp_reward <= 15) difficulty = "medium";
+            else difficulty = "hard";
 
             existing[difficulty]++;
             existing.total++;
@@ -252,21 +208,15 @@ export default function QuestContributionGraph({
         }
       });
 
-      // Convert to array and sort by date
       const contributionsArray = Array.from(contributionMap.values()).sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
       );
 
       setContributions(contributionsArray);
       setTotalQuests(completedQuests?.length || 0);
-
-      // Calculate streaks
       calculateStreaks(contributionsArray);
-
-      console.log("Processed contributions:", contributionsArray.length);
-      console.log("Total quests found:", completedQuests?.length || 0);
     } catch (error) {
-      console.error("Error processing quest contributions:", error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -275,33 +225,80 @@ export default function QuestContributionGraph({
   const calculateStreaks = (contributions: QuestContribution[]) => {
     let currentStreakCount = 0;
     let longestStreakCount = 0;
-    let tempStreak = 0;
+
+    const normalized = contributions.map((c) => ({
+      ...c,
+      dateObj: new Date(c.date + "T00:00:00"),
+    }));
+
+    const sorted = [...normalized].sort(
+      (a, b) => b.dateObj.getTime() - a.dateObj.getTime()
+    );
 
     const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-    // Calculate current streak (consecutive days with quests up to today)
-    for (let i = contributions.length - 1; i >= 0; i--) {
-      const contribution = contributions[i];
-      const contributionDate = new Date(contribution.date);
-      const daysDiff = Math.floor(
-        (today.getTime() - contributionDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
+    const todayContribution = sorted.find(
+      (c) => c.dateObj.getTime() === today.getTime()
+    );
+    const yesterdayContribution = sorted.find(
+      (c) => c.dateObj.getTime() === yesterday.getTime()
+    );
 
-      if (daysDiff <= currentStreakCount && contribution.total > 0) {
-        currentStreakCount++;
-      } else if (contribution.total > 0) {
-        break;
+    if (todayContribution && todayContribution.total > 0) {
+      currentStreakCount = 1;
+      let prevDate = new Date(today);
+
+      for (const c of sorted) {
+        if (c.dateObj.getTime() === today.getTime()) continue;
+        prevDate.setDate(prevDate.getDate() - 1);
+
+        if (c.dateObj.getTime() === prevDate.getTime() && c.total > 0) {
+          currentStreakCount++;
+        } else if (c.dateObj.getTime() < prevDate.getTime()) {
+          break;
+        }
+      }
+    } else if (yesterdayContribution && yesterdayContribution.total > 0) {
+      currentStreakCount = 1;
+      let prevDate = new Date(yesterday);
+
+      for (const c of sorted) {
+        if (c.dateObj.getTime() === yesterday.getTime()) continue;
+        prevDate.setDate(prevDate.getDate() - 1);
+
+        if (c.dateObj.getTime() === prevDate.getTime() && c.total > 0) {
+          currentStreakCount++;
+        } else if (c.dateObj.getTime() < prevDate.getTime()) {
+          break;
+        }
       }
     }
 
-    // Calculate longest streak
-    for (const contribution of contributions) {
-      if (contribution.total > 0) {
-        tempStreak++;
+    const chronological = [...normalized].sort(
+      (a, b) => a.dateObj.getTime() - b.dateObj.getTime()
+    );
+
+    let tempStreak = 0;
+    let prevDate: Date | null = null;
+
+    for (const c of chronological) {
+      if (c.total > 0) {
+        if (prevDate) {
+          const expected = new Date(prevDate);
+          expected.setDate(expected.getDate() + 1);
+          if (c.dateObj.getTime() === expected.getTime()) {
+            tempStreak++;
+          } else {
+            tempStreak = 1;
+          }
+        } else {
+          tempStreak = 1;
+        }
+        prevDate = c.dateObj;
         longestStreakCount = Math.max(longestStreakCount, tempStreak);
-      } else {
-        tempStreak = 0;
       }
     }
 
@@ -432,6 +429,10 @@ export default function QuestContributionGraph({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          {/* Mobile Scroll Indicator */}
+          <div className="md:hidden text-xs text-center text-white/70 mt-1">
+            <span>← Swipe to view full graph →</span>
+          </div>
           {/* Year Selector */}
           <div className="flex items-center justify-end gap-2 text-xs">
             {[0, 1, 2].map((offset) => {
@@ -490,33 +491,43 @@ export default function QuestContributionGraph({
           </div>
 
           {/* Contribution Graph */}
-          <div className="space-y-2">
-            {/* Month Labels */}
-            <div className="grid [grid-template-columns:repeat(52,minmax(0,1fr))] gap-1 text-[10px] text-white">
-              {getMonthLabels().map((month, index) => (
-                <div key={index} className="text-center">
-                  {month}
-                </div>
-              ))}
+          <div className="space-y-2 overflow-x-auto pb-4 relative">
+            {/* Mobile scroll indicator */}
+            <div className="md:hidden text-xs text-center text-white/60 mb-1">
+              ← Swipe to see more →
             </div>
+            
+            <div className="min-w-[750px]"> {/* Ensure minimum width for scrolling */}
+              {/* Month Labels */}
+              <div className="grid [grid-template-columns:repeat(52,minmax(0,1fr))] gap-1 text-[10px] text-white">
+                {getMonthLabels().map((month, index) => (
+                  <div key={index} className="text-center">
+                    {month}
+                  </div>
+                ))}
+              </div>
 
-            {/* Contribution Grid */}
-            <div className="grid [grid-template-columns:repeat(52,minmax(0,1fr))] grid-rows-7 grid-flow-col gap-1">
-              {contributions.map((contribution) => (
-                <div
-                  key={contribution.date}
-                  className={`w-3 h-3 rounded-sm cursor-pointer transition-colors hover:scale-110 ${getContributionColor(
-                    contribution
-                  )}`}
-                  title={`${contribution.date}: ${getTooltipContent(
-                    contribution
-                  )}`}
-                />
-              ))}
+              {/* Contribution Grid */}
+              <div className="grid [grid-template-columns:repeat(52,minmax(0,1fr))] grid-rows-7 grid-flow-col gap-1">
+                {contributions.map((contribution) => {
+                  const isToday = contribution.date === new Date().toISOString().split("T")[0];
+                  return (
+                    <div
+                      key={contribution.date}
+                      className={`w-3 h-3 rounded-sm cursor-pointer transition-colors hover:scale-110 ${getContributionColor(
+                        contribution
+                      )} ${isToday ? 'ring-2 ring-white ring-offset-1 ring-offset-black' : ''}`}
+                      title={`${contribution.date}: ${getTooltipContent(
+                        contribution
+                      )}${isToday ? ' (Today)' : ''}`}
+                    />
+                  );
+                })}
+              </div>
             </div>
 
             {/* Legend */}
-            <div className="flex items-center justify-between text-xs text-white">
+            <div className="flex items-center justify-between text-xs text-white mt-2">
               <span>Less</span>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-white/10 rounded-sm"></div>
