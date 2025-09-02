@@ -80,7 +80,12 @@ async function generateQuests(preference?: string[]): Promise<Quest[]> {
 
     const response = await callDeepSeekAPI(messages);
     // Log only first 100 chars to reduce console output
-    console.log("AI Response Preview:", response ? response.substring(0, 100) + (response.length > 100 ? "..." : "") : "No response");
+    console.log(
+      "AI Response Preview:",
+      response
+        ? response.substring(0, 100) + (response.length > 100 ? "..." : "")
+        : "No response"
+    );
 
     // Extract only the JSON array from the response using RegExp
     // First try to find a JSON array with the standard pattern
@@ -89,8 +94,8 @@ async function generateQuests(preference?: string[]): Promise<Quest[]> {
     // If standard pattern fails, try to find any JSON-like structure
     if (!jsonMatch && response) {
       // Look for anything that resembles a JSON array
-      jsonMatch = response.match(/\[([\s\S]*?)\]/); 
-      
+      jsonMatch = response.match(/\[([\s\S]*?)\]/);
+
       if (!jsonMatch) {
         console.error("AI Response that failed parsing:", response);
         throw new Error("No valid JSON array found in AI response.");
@@ -99,19 +104,31 @@ async function generateQuests(preference?: string[]): Promise<Quest[]> {
       console.error("Empty AI response");
       throw new Error("Empty AI response received.");
     }
-    
+
+    let raw = jsonMatch[0];
+
+    // 🔹 Fix unquoted words like [creative, journal] → ["creative", "journal"]
+    raw = raw.replace(
+      /(\[|\s)([a-zA-Z_][a-zA-Z0-9_-]*)(\s*[,|\]])/g,
+      '$1"$2"$3'
+    );
+
+    let quests;
+
     try {
-       const quests: Quest[] = JSON.parse(jsonMatch[0]);
-       // Validate that we have a proper array of quests
-       if (!Array.isArray(quests)) {
-         throw new Error("Parsed result is not an array");
-       }
-       return quests;
-     } catch (parseError) {
-       console.error("JSON Parse Error:", parseError);
-       console.error("Attempted to parse:", jsonMatch[0]);
-       throw new Error(`Failed to parse JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
-     }
+       quests = JSON.parse(raw);
+      // Validate that we have a proper array of quests
+      if (!Array.isArray(quests)) {
+        throw new Error("Parsed result is not an array");
+      }
+      return quests;
+    } catch (parseError) {
+      console.error("JSON Parse Error:", parseError);
+      console.error("Attempted to parse:", jsonMatch[0]);
+      throw new Error(
+        `Failed to parse JSON: ${parseError instanceof Error ? parseError.message : "Unknown error"}`
+      );
+    }
   } catch (error) {
     console.error("Error generating quests:", error);
     throw error;
@@ -216,16 +233,22 @@ export async function GET() {
           ];
           const aiResponse = await callDeepSeekAPI(penaltyPrompt);
           // Log only first 100 chars to reduce console output
-          console.log("Penalty AI Response Preview:", aiResponse ? aiResponse.substring(0, 100) + (aiResponse.length > 100 ? "..." : "") : "No response");
+          console.log(
+            "Penalty AI Response Preview:",
+            aiResponse
+              ? aiResponse.substring(0, 100) +
+                  (aiResponse.length > 100 ? "..." : "")
+              : "No response"
+          );
           // First try to find a JSON array with the standard pattern
           let jsonMatch = aiResponse?.match(/\[\s*{[\s\S]*?}\s*\]/);
-          
+
           // If standard pattern fails, try to find any JSON-like structure
           if (!jsonMatch && aiResponse) {
             // Look for anything that resembles a JSON array
             jsonMatch = aiResponse.match(/\[([\s\S]*?)\]/);
           }
-          
+
           if (jsonMatch) {
             try {
               const aiQuests = JSON.parse(jsonMatch[0]);
@@ -323,8 +346,6 @@ export async function GET() {
     );
   }
 }
-
-
 
 // === POST (generate and insert new quests) ===
 // This method generates new daily quests (3 per set, max 3 sets = 9 quests per day)
@@ -469,23 +490,45 @@ export async function POST() {
       for_date: todayDate.toISOString().split("T")[0],
     }));
 
-    const { data: insertedQuests, error: insertError } = await supabase
-      .from("quests")
-      .insert(questsWithSet)
-      .select();
+    // ✅ Validate quests before inserting
+    const validQuests = questsWithSet.filter(
+      (q: any) =>
+        q.title &&
+        q.description &&
+        q.type &&
+        q.xp_reward &&
+        q.deadline
+    );
 
-    if (insertError) {
-      console.error("Error inserting quests:", insertError);
-      return NextResponse.json(
-        { error: "Failed to insert quests" },
-        { status: 500 }
-      );
+    if (validQuests.length !== questsWithSet.length) {
+      console.warn("⚠️ Some quests were invalid and skipped:", questsWithSet);
     }
 
-    console.log(
-      `Successfully created ${insertedQuests?.length || 0} quests in quest set ${questSet.id}`
-    );
-    return NextResponse.json({ quests: insertedQuests });
+    if (validQuests.length > 0) {
+      const { data: insertedQuests, error: insertError } = await supabase
+        .from("quests")
+        .insert(validQuests)
+        .select();
+
+      if (insertError) {
+        console.error("Error inserting quests:", insertError);
+        return NextResponse.json(
+          { error: "Failed to insert quests" },
+          { status: 500 }
+        );
+      }
+
+      console.log(
+        `Inserted ${validQuests.length} valid quests in quest set ${questSet.id}`
+      );
+      return NextResponse.json({ quests: insertedQuests });
+    } else {
+      console.error("❌ No valid quests to insert. AI returned invalid JSON.");
+      return NextResponse.json(
+        { error: "No valid quests to insert." },
+        { status: 400 }
+      );
+    }
   } catch (error) {
     console.error("Error in POST /api/quests:", error);
     return NextResponse.json(
