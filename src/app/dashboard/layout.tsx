@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   Trophy,
+  ListTodo,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -52,11 +53,6 @@ export default function DashboardLayout({
       label: "Daily Quests",
       icon: Trophy,
     },
-    // {
-    //   href: "/dashboard/ideas",
-    //   label: "Ideas",
-    //   icon: Lightbulb,
-    // },
     {
       href: "/dashboard/chat",
       label: "AI Chat",
@@ -71,6 +67,11 @@ export default function DashboardLayout({
       href: "/dashboard/mirror",
       label: "Creativity Mirror",
       icon: Lightbulb,
+    },
+    {
+      href: "/todo-feature",
+      label: "To-Do List",
+      icon: ListTodo,
     },
   ];
 
