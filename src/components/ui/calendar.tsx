@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -81,24 +80,28 @@ export default function CalendarWithTodos() {
       <div className="flex items-center gap-2">
   <span className="text-lg font-semibold text-white px-2 py-1">{format(currentMonth, "MMMM")}</span>
         {yearDropdownOpen ? (
-          <select
-            autoFocus
-            className="bg-black/80 border border-white/20 text-white rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            value={currentMonth.getFullYear()}
-            onChange={e => {
-              const newYear = parseInt(e.target.value, 10);
-              setCurrentMonth(new Date(newYear, currentMonth.getMonth(), 1));
-              setYearDropdownOpen(false);
-            }}
-            onBlur={() => setYearDropdownOpen(false)}
-          >
-            {Array.from({ length: 21 }, (_, i) => {
-              const year = new Date().getFullYear() - 10 + i;
-              return (
-                <option key={year} value={year}>{year}</option>
-              );
-            })}
-          </select>
+          <div className="relative z-50" style={{ minWidth: 0, width: '100%' }}>
+            <select
+              autoFocus
+              className="bg-black/80 border border-white/20 text-white rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 max-h-40 overflow-y-auto w-full"
+              value={currentMonth.getFullYear()}
+              onChange={e => {
+                const newYear = parseInt(e.target.value, 10);
+                setCurrentMonth(new Date(newYear, currentMonth.getMonth(), 1));
+                setYearDropdownOpen(false);
+              }}
+              onBlur={() => setYearDropdownOpen(false)}
+              size={6}
+              style={{ minWidth: 0, width: '100%' }}
+            >
+              {Array.from({ length: 21 }, (_, i) => {
+                const year = new Date().getFullYear() - 10 + i;
+                return (
+                  <option key={year} value={year}>{year}</option>
+                );
+              })}
+            </select>
+          </div>
         ) : (
           <span
             className="text-lg font-semibold text-white cursor-pointer hover:underline px-2 py-1"
@@ -263,15 +266,38 @@ export default function CalendarWithTodos() {
                     className="text-xs text-red-400"
                     onClick={() => deleteTodo(selectedDate, todo.id)}
                   >
-                    ✕
+                    ❌
                   </button>
                 )}
-                <input
-                  type="checkbox"
-                  checked={todo.completed}
-                  onChange={() => toggleTodo(selectedDate, todo.id)}
-                  disabled={isReadOnly}
-                />
+                <span className="relative inline-block w-5 h-5">
+                  <input
+                    type="checkbox"
+                    checked={todo.completed}
+                    onChange={() => toggleTodo(selectedDate, todo.id)}
+                    disabled={isReadOnly}
+                    className="w-5 h-5 accent-green-600 rounded border-none bg-black/80 text-lg cursor-pointer appearance-none outline-none ring-0 focus:ring-0 focus:outline-none"
+                    style={{ position: 'absolute', left: 0, top: 0, margin: 0, padding: 0 }}
+                  />
+                  {todo.completed && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        top: 0,
+                        width: '1.25rem',
+                        height: '1.25rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        pointerEvents: 'none',
+                        fontSize: '1.1rem',
+                        color: '#22c55e',
+                      }}
+                    >
+                      ✅
+                    </span>
+                  )}
+                </span>
               </li>
             ))}
           </ul>
