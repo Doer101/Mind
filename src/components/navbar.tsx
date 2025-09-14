@@ -7,8 +7,10 @@ import { Sparkles, UserCircle } from "lucide-react";
 import UserProfile from "./user-profile";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 export default function Navbar() {
+  const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,15 +46,17 @@ export default function Navbar() {
             <div className="w-8 h-8 animate-pulse bg-gray-300 rounded"></div>
           ) : user ? (
             <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white hover:text-black"
-                asChild
-              >
-                <Link href="/dashboard">Dashboard</Link>
-              </Button>
-              <UserProfile />
+              {pathname !== "/todo-feature" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white hover:text-black"
+                  asChild
+                >
+                  <Link href="/dashboard">Dashboard</Link>
+                </Button>
+              )}
+              {pathname !== "/todo-feature" && <UserProfile />}
             </>
           ) : (
             <>
