@@ -129,6 +129,7 @@ export default function QuestContributionGraph({
         error: any;
       };
 
+      // 🔁 Fallback if join fails
       if (error) {
         const { data: progressData, error: progressError } = (await supabase
           .from("user_quest_progress")
@@ -173,9 +174,8 @@ export default function QuestContributionGraph({
         }
       }
 
-      // Process quests
+      // Build contribution map
       const contributionMap = new Map<string, QuestContribution>();
-
       for (let i = 0; i < 364; i++) {
         const date = addDays(startWeek, i);
         const dateStr = normalizeToLocalDateStr(date);
@@ -187,7 +187,7 @@ export default function QuestContributionGraph({
           total: 0,
         });
       }
-
+      // Fill contribution map with completed quests
       completedQuests?.forEach((questProgress) => {
         if (questProgress.completed_at && questProgress.quests) {
           const dateStr = normalizeToLocalDateStr(
@@ -198,7 +198,8 @@ export default function QuestContributionGraph({
           if (existing) {
             let difficulty: "easy" | "medium" | "hard";
             if (questProgress.quests.xp_reward <= 8) difficulty = "easy";
-            else if (questProgress.quests.xp_reward <= 15) difficulty = "medium";
+            else if (questProgress.quests.xp_reward <= 15)
+              difficulty = "medium";
             else difficulty = "hard";
 
             existing[difficulty]++;
@@ -276,7 +277,6 @@ export default function QuestContributionGraph({
         }
       }
     }
-
     const chronological = [...normalized].sort(
       (a, b) => a.dateObj.getTime() - b.dateObj.getTime()
     );
@@ -323,23 +323,29 @@ export default function QuestContributionGraph({
 
     switch (primaryDifficulty) {
       case "easy":
-        if (intensity === 1) return "bg-green-200";
-        if (intensity === 2) return "bg-green-300";
-        if (intensity === 3) return "bg-green-400";
-        if (intensity === 4) return "bg-green-500";
-        return "bg-green-600";
+        return [
+          "bg-green-200",
+          "bg-green-300",
+          "bg-green-400",
+          "bg-green-500",
+          "bg-green-600",
+        ][intensity - 1];
       case "medium":
-        if (intensity === 1) return "bg-blue-200";
-        if (intensity === 2) return "bg-blue-300";
-        if (intensity === 3) return "bg-blue-400";
-        if (intensity === 4) return "bg-blue-500";
-        return "bg-blue-600";
+        return [
+          "bg-blue-200",
+          "bg-blue-300",
+          "bg-blue-400",
+          "bg-blue-500",
+          "bg-blue-600",
+        ][intensity - 1];
       case "hard":
-        if (intensity === 1) return "bg-purple-200";
-        if (intensity === 2) return "bg-purple-300";
-        if (intensity === 3) return "bg-purple-400";
-        if (intensity === 4) return "bg-purple-500";
-        return "bg-purple-600";
+        return [
+          "bg-purple-200",
+          "bg-purple-300",
+          "bg-purple-400",
+          "bg-purple-500",
+          "bg-purple-600",
+        ][intensity - 1];
       default:
         return "bg-green-400";
     }
@@ -355,7 +361,9 @@ export default function QuestContributionGraph({
     if (contribution.medium > 0) parts.push(`${contribution.medium} medium`);
     if (contribution.hard > 0) parts.push(`${contribution.hard} hard`);
 
-    return `${contribution.total} quest${contribution.total > 1 ? "s" : ""} completed (${parts.join(", ")})`;
+    return `${contribution.total} quest${
+      contribution.total > 1 ? "s" : ""
+    } completed (${parts.join(", ")})`;
   };
 
   const getMonthLabels = () => {
@@ -374,6 +382,8 @@ export default function QuestContributionGraph({
       "Nov",
       "Dec",
     ];
+
+    selectedYear === new Date().getFullYear();
 
     const today = new Date();
     const isCurrentYear = selectedYear === today.getFullYear();
@@ -394,14 +404,12 @@ export default function QuestContributionGraph({
     }
     return labels;
   };
-
   if (loading || !supabase) {
     return (
       <Card className="bg-black/70 border-none text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
-            <Trophy className="h-5 w-5 text-white" />
-            Quest Contribution Graph
+            <Trophy className="h-5 w-5 text-white" /> Quest Contribution Graph
           </CardTitle>
           <CardDescription className="text-white">
             {!supabase ? "Initializing..." : "Loading your quest activity..."}
@@ -420,8 +428,7 @@ export default function QuestContributionGraph({
     <Card className="bg-black/70 border-none text-white">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-white">
-          <Trophy className="h-5 w-5 text-white" />
-          Quest Contribution Graph
+          <Trophy className="h-5 w-5 text-white" /> Quest Contribution Graph
         </CardTitle>
         <CardDescription className="text-white">
           {totalQuests} quests completed in the last year
@@ -429,12 +436,8 @@ export default function QuestContributionGraph({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {/* Mobile Scroll Indicator */}
-          <div className="md:hidden text-xs text-center text-white/70 mt-1">
-            <span>← Swipe to view full graph →</span>
-          </div>
           {/* Year Selector */}
-          <div className="flex items-center justify-end gap-2 text-xs">
+          <div className="flex flex-wrap md:justify-end gap-2 text-xs justify-center">
             {[0, 1, 2].map((offset) => {
               const year = new Date().getFullYear() - offset;
               const isActive = selectedYear === year;
@@ -444,8 +447,8 @@ export default function QuestContributionGraph({
                   onClick={() => setSelectedYear(year)}
                   className={
                     isActive
-                      ? "px-2 py-1 rounded bg-white/10 text-white"
-                      : "px-2 py-1 rounded text-white/70 hover:bg-white/10"
+                      ? "px-3 py-1 rounded bg-white/10 text-white"
+                      : "px-3 py-1 rounded text-white/70 hover:bg-white/10"
                   }
                 >
                   {year}
@@ -453,8 +456,9 @@ export default function QuestContributionGraph({
               );
             })}
           </div>
+
           {/* Stats Row */}
-          <div className="grid grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm mt-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
                 {currentStreak}
@@ -489,94 +493,109 @@ export default function QuestContributionGraph({
               )}
             </div>
           </div>
-
           {/* Contribution Graph */}
-          <div className="space-y-2 overflow-x-auto pb-4 relative">
-            {/* Mobile scroll indicator */}
-            <div className="md:hidden text-xs text-center text-white/60 mb-1">
-              ← Swipe to see more →
-            </div>
-            
-            <div className="min-w-[750px]"> {/* Ensure minimum width for scrolling */}
-              {/* Month Labels */}
-              <div className="grid [grid-template-columns:repeat(52,minmax(0,1fr))] gap-1 text-[10px] text-white">
-                {getMonthLabels().map((month, index) => (
-                  <div key={index} className="text-center">
-                    {month}
-                  </div>
-                ))}
-              </div>
-
-              {/* Contribution Grid */}
-              <div className="grid [grid-template-columns:repeat(52,minmax(0,1fr))] grid-rows-7 grid-flow-col gap-1">
-                {contributions.map((contribution) => {
-                  const isToday = contribution.date === new Date().toISOString().split("T")[0];
-                  return (
-                    <div
-                      key={contribution.date}
-                      className={`w-3 h-3 rounded-sm cursor-pointer transition-colors hover:scale-110 ${getContributionColor(
-                        contribution
-                      )} ${isToday ? 'ring-2 ring-white ring-offset-1 ring-offset-black' : ''}`}
-                      title={`${contribution.date}: ${getTooltipContent(
-                        contribution
-                      )}${isToday ? ' (Today)' : ''}`}
-                    />
-                  );
-                })}
-              </div>
+          <div className="space-y-2 pb-4">
+            {/* Month Labels (hidden on mobile) */}
+            <div
+              className="hidden sm:grid text-[10px] text-white w-full"
+              style={{
+                gridTemplateColumns: `repeat(52, 1fr)`, // evenly divide full width
+              }}
+            >
+              {getMonthLabels().map((month, index) => (
+                <div key={index} className="text-center">
+                  {month}
+                </div>
+              ))}
             </div>
 
-            {/* Legend */}
-            <div className="flex items-center justify-between text-xs text-white mt-2">
+            {/* Heatmap Blocks */}
+            <div
+              className="grid grid-rows-7 grid-flow-col w-full"
+              style={{
+                gridTemplateColumns: `repeat(52, 1fr)`, // evenly fill width
+                gap: "2px", // consistent spacing
+              }}
+            >
+              {contributions.map((contribution) => {
+                const isToday =
+                  contribution.date === new Date().toISOString().split("T")[0];
+
+                return (
+                  <div
+                    key={contribution.date}
+                    className={`aspect-square rounded-[2px] cursor-pointer 
+            transition-transform hover:scale-110
+            ${getContributionColor(contribution)} 
+            ${
+              isToday
+                ? "ring-1 ring-white ring-offset-[0.5px] sm:ring-2 sm:ring-offset-1 ring-offset-black"
+                : ""
+            }
+`}
+                    title={`${contribution.date}: ${getTooltipContent(contribution)}${
+                      isToday ? " (Today)" : ""
+                    }`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Legends */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-white mt-2 gap-2">
+            <div className="flex items-center gap-1 justify-center sm:justify-start">
               <span>Less</span>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-white/10 rounded-sm"></div>
-                <div className="w-3 h-3 bg-green-200 rounded-sm"></div>
-                <div className="w-3 h-3 bg-green-300 rounded-sm"></div>
-                <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
-                <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
-                <span>More</span>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-white/10 rounded-sm"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-200 rounded-sm"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-300 rounded-sm"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-400 rounded-sm"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-sm"></div>
               </div>
+              <span>More</span>
             </div>
 
-            {/* Difficulty Legend */}
-            <div className="flex items-center gap-4 text-xs">
+            <div className="flex flex-wrap justify-center sm:justify-end gap-4">
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-400 rounded-sm"></div>
                 <span>Easy</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-blue-400 rounded-sm"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-400 rounded-sm"></div>
                 <span>Medium</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-purple-400 rounded-sm"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-purple-400 rounded-sm"></div>
                 <span>Hard</span>
               </div>
             </div>
+          </div>
 
-            {/* Call to Action */}
-            {totalQuests === 0 && (
-              <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 rounded-lg border border-green-200 dark:border-green-800">
-                <div className="text-center space-y-2">
-                  <h4 className="font-semibold text-green-800 dark:text-green-200">
-                    Start Your Quest Journey!
-                  </h4>
-                  <p className="text-sm text-green-700 dark:text-green-300">
-                    Complete your first quest to begin building your
-                    contribution streak.
-                  </p>
-                  <Button asChild size="sm" className="mt-2">
-                    <Link href="/dashboard/quests">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Generate Quests
-                    </Link>
-                  </Button>
-                </div>
+          {/* Call to Action (only for current year) */}
+          {selectedYear === new Date().getFullYear() && totalQuests === 0 && (
+            <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="text-center space-y-2">
+                <h4 className="font-semibold text-green-800 dark:text-green-200">
+                  Start Your Quest Journey!
+                </h4>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Complete your first quest to begin building your contribution
+                  streak.
+                </p>
+                <Button asChild size="sm" className="mt-2">
+                  <Link href="/dashboard/quests">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Generate Quests
+                  </Link>
+                </Button>
               </div>
-            )}
+            </div>
+          )}
 
-            {totalQuests > 0 && currentStreak === 0 && (
+          {selectedYear === new Date().getFullYear() &&
+            totalQuests > 0 &&
+            currentStreak === 0 && (
               <div className="mt-4 p-4 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
                 <div className="text-center space-y-2">
                   <h4 className="font-semibold text-orange-800 dark:text-orange-200">
@@ -594,7 +613,6 @@ export default function QuestContributionGraph({
                 </div>
               </div>
             )}
-          </div>
         </div>
       </CardContent>
     </Card>
