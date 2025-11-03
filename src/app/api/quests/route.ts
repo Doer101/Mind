@@ -87,47 +87,142 @@ async function generateQuests(preference?: string[]): Promise<Quest[]> {
         : "No response"
     );
 
-    // Extract only the JSON array from the response using RegExp
-    // First try to find a JSON array with the standard pattern
-    let jsonMatch = response?.match(/\[\s*{[\s\S]*?}\s*\]/);
-
-    // If standard pattern fails, try to find any JSON-like structure
-    if (!jsonMatch && response) {
-      // Look for anything that resembles a JSON array
-      jsonMatch = response.match(/\[([\s\S]*?)\]/);
-
-      if (!jsonMatch) {
-        console.error("AI Response that failed parsing:", response);
-        throw new Error("No valid JSON array found in AI response.");
-      }
-    } else if (!jsonMatch) {
-      console.error("Empty AI response");
+    if (!response) {
       throw new Error("Empty AI response received.");
     }
 
-    let raw = jsonMatch[0];
-
-    // 🔹 Fix unquoted words like [creative, journal] → ["creative", "journal"]
-    raw = raw.replace(
-      /(\[|\s)([a-zA-Z_][a-zA-Z0-9_-]*)(\s*[,|\]])/g,
-      '$1"$2"$3'
-    );
-
+    // Remove thinking tags if present
+    const cleanedResponse = response.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    
+    // Try to extract a complete JSON array
+    let jsonArray;
+    
+    // First attempt: Find a complete JSON array
+    const completeMatch = cleanedResponse.match(/(\[[\s\S]*?\])/);
+    if (completeMatch) {
+      jsonArray = completeMatch[0];
+    } else {
+      // Second attempt: Find the start of a JSON array
+      const startMatch = cleanedResponse.match(/(\[\s*{)/);
+      if (startMatch) {
+        // We found the start of an array, now try to complete it
+        const startIndex = startMatch.index || 0;
+        let partialJson = cleanedResponse.substring(startIndex);
+        
+        // Count open braces and brackets to ensure proper structure
+        let openBraces = (partialJson.match(/{/g) || []).length;
+        let closeBraces = (partialJson.match(/}/g) || []).length;
+        let openBrackets = (partialJson.match(/\[/g) || []).length;
+        let closeBrackets = (partialJson.match(/\]/g) || []).length;
+        
+        // Complete the JSON structure if needed
+        let fixedJson = partialJson;
+        
+        // Close any open objects
+        while (openBraces > closeBraces) {
+          fixedJson += "}";
+          closeBraces++;
+        }
+        
+        // Close any open arrays
+        while (openBrackets > closeBrackets) {
+          fixedJson += "]";
+          closeBrackets++;
+        }
+        
+        jsonArray = fixedJson;
+      } else {
+        console.error("AI Response that failed parsing:", response);
+        throw new Error("No valid JSON array found in AI response.");
+      }
+    }
+    
+    // Fix unquoted property names and values
+    let processedJson = jsonArray
+      // Fix unquoted property names
+      .replace(/(\{|\,)\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*:/g, '$1"$2":')
+      // Fix unquoted string values
+      .replace(/:\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*([,}])/g, ':"$1"$2')
+      // Fix unquoted array values
+      .replace(/(\[|\s)([a-zA-Z_][a-zA-Z0-9_-]*)(\s*[,|\]])/g, '$1"$2"$3');
+    
     let quests;
-
     try {
-       quests = JSON.parse(raw);
+      quests = JSON.parse(processedJson);
+      
       // Validate that we have a proper array of quests
       if (!Array.isArray(quests)) {
         throw new Error("Parsed result is not an array");
       }
+      
+      // Ensure each quest has the required properties
+      quests = quests.filter(quest => 
+        quest && 
+        typeof quest === 'object' && 
+        quest.title && 
+        quest.description && 
+        quest.type && 
+        quest.xp
+      );
+      
+      // If we have no valid quests after filtering, use fallback quests
+      if (quests.length === 0) {
+        console.warn("No valid quests after filtering, using fallback quests");
+        quests = [
+          {
+            title: "Creative Challenge",
+            description: "Create something new using your favorite tools or medium.",
+            type: "creative",
+            xp: 15,
+            deadlineHours: 24
+          },
+          {
+            title: "Reflect and Write",
+            description: "Take 10 minutes to journal about your recent progress.",
+            type: "journal",
+            xp: 10,
+            deadlineHours: 24
+          },
+          {
+            title: "Learn Something New",
+            description: "Spend time learning a new skill or concept today.",
+            type: "challenge",
+            xp: 15,
+            deadlineHours: 24
+          }
+        ];
+      }
+      
       return quests;
     } catch (parseError) {
       console.error("JSON Parse Error:", parseError);
-      console.error("Attempted to parse:", jsonMatch[0]);
-      throw new Error(
-        `Failed to parse JSON: ${parseError instanceof Error ? parseError.message : "Unknown error"}`
-      );
+      console.error("Attempted to parse:", processedJson);
+      
+      // Return fallback quests if parsing fails
+      console.warn("Using fallback quests due to parsing error");
+      return [
+        {
+          title: "Creative Challenge",
+          description: "Create something new using your favorite tools or medium.",
+          type: "creative",
+          xp: 15,
+          deadlineHours: 24
+        },
+        {
+          title: "Reflect and Write",
+          description: "Take 10 minutes to journal about your recent progress.",
+          type: "journal",
+          xp: 10,
+          deadlineHours: 24
+        },
+        {
+          title: "Learn Something New",
+          description: "Spend time learning a new skill or concept today.",
+          type: "challenge",
+          xp: 15,
+          deadlineHours: 24
+        }
+      ];
     }
   } catch (error) {
     console.error("Error generating quests:", error);

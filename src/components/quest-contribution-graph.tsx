@@ -544,18 +544,6 @@ export default function QuestContributionGraph({
 
           {/* Legends */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-white mt-2 gap-2">
-            <div className="flex items-center gap-1 justify-center sm:justify-start">
-              <span>Less</span>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-white/10 rounded-sm"></div>
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-200 rounded-sm"></div>
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-300 rounded-sm"></div>
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-400 rounded-sm"></div>
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-sm"></div>
-              </div>
-              <span>More</span>
-            </div>
-
             <div className="flex flex-wrap justify-center sm:justify-end gap-4">
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-400 rounded-sm"></div>
