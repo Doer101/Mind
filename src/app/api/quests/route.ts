@@ -335,33 +335,82 @@ export async function GET() {
                   (aiResponse.length > 100 ? "..." : "")
               : "No response"
           );
-          // First try to find a JSON array with the standard pattern
-          let jsonMatch = aiResponse?.match(/\[\s*{[\s\S]*?}\s*\]/);
-
-          // If standard pattern fails, try to find any JSON-like structure
-          if (!jsonMatch && aiResponse) {
-            // Look for anything that resembles a JSON array
-            jsonMatch = aiResponse.match(/\[([\s\S]*?)\]/);
-          }
-
-          if (jsonMatch) {
-            try {
-              const aiQuests = JSON.parse(jsonMatch[0]);
-              if (Array.isArray(aiQuests) && aiQuests.length > 0) {
-                penaltyTitle = aiQuests[0].title || penaltyTitle;
-                penaltyDescription =
-                  aiQuests[0].description || penaltyDescription;
-                penaltyType = "penalty"; // Always set as penalty
-                penaltyXP = aiQuests[0].xp || penaltyXP;
-                penaltyDeadline = new Date(
-                  now.getTime() +
-                    (aiQuests[0].deadlineHours || 24) * 60 * 60 * 1000
-                ).toISOString();
+          
+          if (!aiResponse) {
+            console.warn("Empty AI response for penalty quest, using fallback");
+          } else {
+            // Use the same robust JSON parsing as the main generateQuests function
+            const cleanedResponse = aiResponse.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+            
+            // Try to extract a complete JSON array
+            let jsonArray;
+            
+            // First attempt: Find a complete JSON array
+            const completeMatch = cleanedResponse.match(/(\[[\s\S]*?\])/);
+            if (completeMatch) {
+              jsonArray = completeMatch[0];
+            } else {
+              // Second attempt: Find the start of a JSON array
+              const startMatch = cleanedResponse.match(/(\[\s*{)/);
+              if (startMatch) {
+                // We found the start of an array, now try to complete it
+                const startIndex = startMatch.index || 0;
+                let partialJson = cleanedResponse.substring(startIndex);
+                
+                // Count open braces and brackets to ensure proper structure
+                let openBraces = (partialJson.match(/{/g) || []).length;
+                let closeBraces = (partialJson.match(/}/g) || []).length;
+                let openBrackets = (partialJson.match(/\[/g) || []).length;
+                let closeBrackets = (partialJson.match(/\]/g) || []).length;
+                
+                // Complete the JSON structure if needed
+                let fixedJson = partialJson;
+                
+                // Close any open objects
+                while (openBraces > closeBraces) {
+                  fixedJson += "}";
+                  closeBraces++;
+                }
+                
+                // Close any open arrays
+                while (openBrackets > closeBrackets) {
+                  fixedJson += "]";
+                  closeBrackets++;
+                }
+                
+                jsonArray = fixedJson;
+              } else {
+                console.warn("No JSON array found in penalty response, using fallback");
               }
-            } catch (parseError) {
-              console.error("Penalty JSON Parse Error:", parseError);
-              console.error("Attempted to parse:", jsonMatch[0]);
-              // Continue with default values if parsing fails
+            }
+            
+            if (jsonArray) {
+              // Fix unquoted property names and values
+              let processedJson = jsonArray
+                // Fix unquoted property names
+                .replace(/(\{|\,)\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*:/g, '$1"$2":')
+                // Fix unquoted string values
+                .replace(/:\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*([,}])/g, ':"$1"$2')
+                // Fix unquoted array values
+                .replace(/(\[|\s)([a-zA-Z_][a-zA-Z0-9_-]*)(\s*[,|\]])/g, '$1"$2"$3');
+              
+              try {
+                const aiQuests = JSON.parse(processedJson);
+                if (Array.isArray(aiQuests) && aiQuests.length > 0) {
+                  penaltyTitle = aiQuests[0].title || penaltyTitle;
+                  penaltyDescription = aiQuests[0].description || penaltyDescription;
+                  penaltyType = "penalty"; // Always set as penalty
+                  penaltyXP = aiQuests[0].xp || penaltyXP;
+                  penaltyDeadline = new Date(
+                    now.getTime() +
+                      (aiQuests[0].deadlineHours || 24) * 60 * 60 * 1000
+                  ).toISOString();
+                }
+              } catch (parseError) {
+                console.error("Penalty JSON Parse Error:", parseError);
+                console.error("Attempted to parse:", processedJson);
+                // Continue with default values if parsing fails
+              }
             }
           }
         } catch (err) {
