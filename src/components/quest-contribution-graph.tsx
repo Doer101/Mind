@@ -224,86 +224,75 @@ export default function QuestContributionGraph({
   };
 
   const calculateStreaks = (contributions: QuestContribution[]) => {
-    let currentStreakCount = 0;
+    const parseDate = (dateStr: string) => {
+      const [year, month, day] = dateStr.split("-").map(Number);
+      return new Date(Date.UTC(year, month - 1, day));
+    };
+
+    const activeDays = new Set(
+      contributions
+        .filter((c) => c.total > 0)
+        .map((c) => normalizeToLocalDateStr(parseDate(c.date)))
+    );
+
+    // Calculate Longest Streak
     let longestStreakCount = 0;
+    if (activeDays.size > 0) {
+      const sortedDates = Array.from(activeDays).sort();
+      let currentLongest = 1;
+      for (let i = 1; i < sortedDates.length; i++) {
+        const currentDate = parseDate(sortedDates[i]);
+        const prevDate = parseDate(sortedDates[i - 1]);
+        const diff = (currentDate.getTime() - prevDate.getTime()) / (1000 * 3600 * 24);
 
-    const normalized = contributions.map((c) => ({
-      ...c,
-      dateObj: new Date(c.date + "T00:00:00"),
-    }));
+        if (diff === 1) {
+          currentLongest++;
+        } else {
+          longestStreakCount = Math.max(longestStreakCount, currentLongest);
+          currentLongest = 1;
+        }
+      }
+      longestStreakCount = Math.max(longestStreakCount, currentLongest);
+    }
+    setLongestStreak(longestStreakCount);
 
-    const sorted = [...normalized].sort(
-      (a, b) => b.dateObj.getTime() - a.dateObj.getTime()
-    );
-
+    // Calculate Current Streak
+    let currentStreakCount = 0;
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    const todayStr = normalizeToLocalDateStr(today);
 
-    const todayContribution = sorted.find(
-      (c) => c.dateObj.getTime() === today.getTime()
-    );
-    const yesterdayContribution = sorted.find(
-      (c) => c.dateObj.getTime() === yesterday.getTime()
-    );
-
-    if (todayContribution && todayContribution.total > 0) {
+    if (activeDays.has(todayStr)) {
       currentStreakCount = 1;
       let prevDate = new Date(today);
-
-      for (const c of sorted) {
-        if (c.dateObj.getTime() === today.getTime()) continue;
+      while (true) {
         prevDate.setDate(prevDate.getDate() - 1);
-
-        if (c.dateObj.getTime() === prevDate.getTime() && c.total > 0) {
+        const prevDateStr = normalizeToLocalDateStr(prevDate);
+        if (activeDays.has(prevDateStr)) {
           currentStreakCount++;
-        } else if (c.dateObj.getTime() < prevDate.getTime()) {
-          break;
-        }
-      }
-    } else if (yesterdayContribution && yesterdayContribution.total > 0) {
-      currentStreakCount = 1;
-      let prevDate = new Date(yesterday);
-
-      for (const c of sorted) {
-        if (c.dateObj.getTime() === yesterday.getTime()) continue;
-        prevDate.setDate(prevDate.getDate() - 1);
-
-        if (c.dateObj.getTime() === prevDate.getTime() && c.total > 0) {
-          currentStreakCount++;
-        } else if (c.dateObj.getTime() < prevDate.getTime()) {
-          break;
-        }
-      }
-    }
-    const chronological = [...normalized].sort(
-      (a, b) => a.dateObj.getTime() - b.dateObj.getTime()
-    );
-
-    let tempStreak = 0;
-    let prevDate: Date | null = null;
-
-    for (const c of chronological) {
-      if (c.total > 0) {
-        if (prevDate) {
-          const expected = new Date(prevDate);
-          expected.setDate(expected.getDate() + 1);
-          if (c.dateObj.getTime() === expected.getTime()) {
-            tempStreak++;
-          } else {
-            tempStreak = 1;
-          }
         } else {
-          tempStreak = 1;
+          break;
         }
-        prevDate = c.dateObj;
-        longestStreakCount = Math.max(longestStreakCount, tempStreak);
+      }
+    } else {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = normalizeToLocalDateStr(yesterday);
+      if (activeDays.has(yesterdayStr)) {
+        currentStreakCount = 1;
+        let prevDate = new Date(yesterday);
+        while (true) {
+          prevDate.setDate(prevDate.getDate() - 1);
+          const prevDateStr = normalizeToLocalDateStr(prevDate);
+          if (activeDays.has(prevDateStr)) {
+            currentStreakCount++;
+          } else {
+            break;
+          }
+        }
       }
     }
 
     setCurrentStreak(currentStreakCount);
-    setLongestStreak(longestStreakCount);
   };
 
   const getContributionColor = (contribution: QuestContribution) => {
