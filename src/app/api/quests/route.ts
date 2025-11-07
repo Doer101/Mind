@@ -63,6 +63,157 @@ async function callDeepSeekAPI(messages: any[]) {
   }
 }
 
+// Helper function to get fallback quests
+function getFallbackQuests(): Quest[] {
+  return [
+    {
+      title: "Creative Challenge",
+      description: "Create something new using your favorite tools or medium.",
+      type: "creative",
+      xp: 15,
+      deadlineHours: 24
+    },
+    {
+      title: "Reflect and Write",
+      description: "Take 10 minutes to journal about your recent progress.",
+      type: "journal",
+      xp: 10,
+      deadlineHours: 24
+    },
+    {
+      title: "Learn Something New",
+      description: "Spend time learning a new skill or concept today.",
+      type: "challenge",
+      xp: 15,
+      deadlineHours: 24
+    }
+  ];
+}
+
+// Helper function to extract quest objects from raw text when JSON parsing fails
+function extractQuestsFromRawResponse(response: string): Quest[] {
+  const quests: Quest[] = [];
+  
+  // Try to find quest-like patterns in the text - more flexible patterns
+  const titlePattern = /"title"\s*:\s*"([^"]*?)"/g;
+  const descriptionPattern = /"description"\s*:\s*"([^"]*?)"/g;
+  const typePattern = /"type"\s*:\s*"([^"]*?)"/g;
+  const xpPattern = /"xp"\s*:\s*(\d*)/g;
+  const deadlinePattern = /"deadlineHours"\s*:\s*(\d*)/g;
+  
+  // Extract all matches using exec() instead of matchAll() for compatibility
+  const titles: string[] = [];
+  let titleMatch;
+  while ((titleMatch = titlePattern.exec(response)) !== null) {
+    titles.push(titleMatch[1]);
+  }
+  
+  const descriptions: string[] = [];
+  let descMatch;
+  while ((descMatch = descriptionPattern.exec(response)) !== null) {
+    descriptions.push(descMatch[1]);
+  }
+  
+  const types: string[] = [];
+  let typeMatch;
+  while ((typeMatch = typePattern.exec(response)) !== null) {
+    types.push(typeMatch[1]);
+  }
+  
+  const xps: number[] = [];
+  let xpMatch;
+  while ((xpMatch = xpPattern.exec(response)) !== null) {
+    const xpValue = xpMatch[1] ? parseInt(xpMatch[1]) : 10;
+    xps.push(xpValue);
+  }
+  
+  const deadlines: number[] = [];
+  let deadlineMatch;
+  while ((deadlineMatch = deadlinePattern.exec(response)) !== null) {
+    const deadlineValue = deadlineMatch[1] ? parseInt(deadlineMatch[1]) : 24;
+    deadlines.push(deadlineValue);
+  }
+  
+  // Create quest objects from extracted data
+  const maxQuests = Math.max(titles.length, descriptions.length, types.length, xps.length, deadlines.length);
+  
+  // Valid quest types
+  const validQuestTypes = ["creative", "journal", "mindset", "reflection", "challenge"];
+  
+  for (let i = 0; i < maxQuests; i++) {
+    if (titles[i] && descriptions[i]) {
+      // Normalize the quest type to ensure it's valid
+      let questType = types[i]?.toLowerCase() || "challenge";
+      if (!validQuestTypes.includes(questType as any)) {
+        questType = "challenge"; // Default to challenge if invalid
+      }
+      
+      quests.push({
+        title: titles[i].trim() || "Unknown Quest",
+        description: descriptions[i].trim() || "Complete this quest",
+        type: questType as Quest["type"],
+        xp: xps[i] || 10,
+        deadlineHours: deadlines[i] || 24
+      });
+    }
+  }
+  
+  // If we couldn't extract any quests, try a more lenient approach
+  if (quests.length === 0) {
+    // Look for any text that might be quest titles and descriptions
+    const lines = response.split('\n');
+    for (const line of lines) {
+      if (line.includes('title') && line.includes('description')) {
+        const titleMatch = line.match(/title.*?:\s*["']?([^"'\n,]+)["']?/i);
+        const descMatch = line.match(/description.*?:\s*["']?([^"'\n,]+)["']?/i);
+        
+        if (titleMatch && descMatch) {
+          quests.push({
+            title: titleMatch[1].trim(),
+            description: descMatch[1].trim(),
+            type: "challenge",
+            xp: 10,
+            deadlineHours: 24
+          });
+        }
+      }
+    }
+  }
+  
+  // If still no quests, try to extract from incomplete JSON patterns
+  if (quests.length === 0) {
+    // Try to find any quest-like objects in the text
+    const questObjectPattern = /\{\s*"title".*?\}/g;
+    let questMatch;
+    while ((questMatch = questObjectPattern.exec(response)) !== null) {
+      const questText = questMatch[0];
+      
+      const titleMatch = questText.match(/"title"\s*:\s*"([^"]*?)"/);
+      const descMatch = questText.match(/"description"\s*:\s*"([^"]*?)"/);
+      const typeMatch = questText.match(/"type"\s*:\s*"([^"]*?)"/);
+      const xpMatch = questText.match(/"xp"\s*:\s*(\d*)/);
+      const deadlineMatch = questText.match(/"deadlineHours"\s*:\s*(\d*)/);
+      
+      if (titleMatch && descMatch) {
+        let questType = typeMatch ? typeMatch[1].toLowerCase() : "challenge";
+        if (!validQuestTypes.includes(questType as any)) {
+          questType = "challenge";
+        }
+        
+        quests.push({
+          title: titleMatch[1].trim() || "Unknown Quest",
+          description: descMatch[1].trim() || "Complete this quest",
+          type: questType as Quest["type"],
+          xp: xpMatch && xpMatch[1] ? parseInt(xpMatch[1]) : 10,
+          deadlineHours: deadlineMatch && deadlineMatch[1] ? parseInt(deadlineMatch[1]) : 24
+        });
+      }
+    }
+  }
+  
+  return quests;
+}
+
 // === GENERATE QUESTS WITH AI ===
 async function generateQuests(preference?: string[]): Promise<Quest[]> {
   try {
@@ -144,7 +295,13 @@ async function generateQuests(preference?: string[]): Promise<Quest[]> {
       // Fix unquoted string values
       .replace(/:\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*([,}])/g, ':"$1"$2')
       // Fix unquoted array values
-      .replace(/(\[|\s)([a-zA-Z_][a-zA-Z0-9_-]*)(\s*[,|\]])/g, '$1"$2"$3');
+      .replace(/(\[|\s)([a-zA-Z_][a-zA-Z0-9_-]*)(\s*[,|\]])/g, '$1"$2"$3')
+      // Fix incomplete deadlineHours (like "deadlineHours":} or "deadlineHours":])
+      .replace(/"deadlineHours"\s*:\s*([,}\]])/g, '"deadlineHours":24$1')
+      // Fix incomplete xp (like "xp":} or "xp":])
+      .replace(/"xp"\s*:\s*([,}\]])/g, '"xp":10$1')
+      // Fix incomplete type (like "type":} or "type":])
+      .replace(/"type"\s*:\s*([,}\]])/g, '"type":"challenge"$1');
     
     let quests;
     try {
@@ -168,29 +325,7 @@ async function generateQuests(preference?: string[]): Promise<Quest[]> {
       // If we have no valid quests after filtering, use fallback quests
       if (quests.length === 0) {
         console.warn("No valid quests after filtering, using fallback quests");
-        quests = [
-          {
-            title: "Creative Challenge",
-            description: "Create something new using your favorite tools or medium.",
-            type: "creative",
-            xp: 15,
-            deadlineHours: 24
-          },
-          {
-            title: "Reflect and Write",
-            description: "Take 10 minutes to journal about your recent progress.",
-            type: "journal",
-            xp: 10,
-            deadlineHours: 24
-          },
-          {
-            title: "Learn Something New",
-            description: "Spend time learning a new skill or concept today.",
-            type: "challenge",
-            xp: 15,
-            deadlineHours: 24
-          }
-        ];
+        quests = getFallbackQuests();
       }
       
       return quests;
@@ -198,31 +333,39 @@ async function generateQuests(preference?: string[]): Promise<Quest[]> {
       console.error("JSON Parse Error:", parseError);
       console.error("Attempted to parse:", processedJson);
       
-      // Return fallback quests if parsing fails
-      console.warn("Using fallback quests due to parsing error");
-      return [
-        {
-          title: "Creative Challenge",
-          description: "Create something new using your favorite tools or medium.",
-          type: "creative",
-          xp: 15,
-          deadlineHours: 24
-        },
-        {
-          title: "Reflect and Write",
-          description: "Take 10 minutes to journal about your recent progress.",
-          type: "journal",
-          xp: 10,
-          deadlineHours: 24
-        },
-        {
-          title: "Learn Something New",
-          description: "Spend time learning a new skill or concept today.",
-          type: "challenge",
-          xp: 15,
-          deadlineHours: 24
+      // Try one more fallback: extract individual quest objects from the raw response
+      try {
+        console.warn("Attempting to extract individual quest objects from raw response");
+        const questObjects = extractQuestsFromRawResponse(cleanedResponse);
+        if (questObjects.length > 0) {
+          console.log(`Successfully extracted ${questObjects.length} quests from raw response`);
+          return questObjects;
         }
-      ];
+      } catch (extractionError) {
+        console.error("Quest extraction from raw response also failed:", extractionError);
+      }
+      
+      // Return fallback quests if all parsing attempts fail
+      console.warn("Using fallback quests due to parsing error");
+      const fallbackQuests = getFallbackQuests();
+      
+      // Ensure we return at least 3 quests (or whatever was requested)
+      const targetCount = 3;
+      if (fallbackQuests.length >= targetCount) {
+        return fallbackQuests.slice(0, targetCount);
+      } else {
+        // If we don't have enough fallback quests, duplicate/modify them
+        const extendedQuests = [...fallbackQuests];
+        while (extendedQuests.length < targetCount) {
+          const baseQuest = fallbackQuests[extendedQuests.length % fallbackQuests.length];
+          extendedQuests.push({
+            ...baseQuest,
+            title: `${baseQuest.title} ${extendedQuests.length + 1}`,
+            description: `${baseQuest.description} (Alternative ${extendedQuests.length + 1})`
+          });
+        }
+        return extendedQuests;
+      }
     }
   } catch (error) {
     console.error("Error generating quests:", error);
