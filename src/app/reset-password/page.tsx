@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useRouter } from "next/navigation";
+import { createClient } from "../../../supabase/client";
 import { Button } from "@/components/ui/button";
+
+// Password reset page - waits for session after PKCE auth callback
 
 export default function PublicResetPasswordPage() {
   const [password, setPassword] = useState("");
@@ -12,27 +14,33 @@ export default function PublicResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [tokenChecked, setTokenChecked] = useState(false);
   const router = useRouter();
-  const supabase = createClientComponentClient();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const access_token =
-      searchParams.get("access_token") || searchParams.get("token");
-    if (!access_token) {
-      setError("Invalid or missing reset token.");
+    let mounted = true;
+    
+    const checkSession = async () => {
+      // Initialize client only in browser
+      const supabase = createClient();
+      
+      // Small delay to ensure cookies from auth callback are available
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (!mounted) return;
+      
+      if (error || !session) {
+        setError("Invalid or missing reset token. Please request a new password reset link.");
+      }
       setTokenChecked(true);
-      return;
-    }
-    // Set the session using the token
-    supabase.auth
-      .setSession({ access_token, refresh_token: access_token })
-      .then(({ error }) => {
-        if (error) {
-          setError("Invalid or expired reset token.");
-        }
-        setTokenChecked(true);
-      });
-  }, [searchParams, supabase.auth]);
+    };
+    
+    checkSession();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +55,10 @@ export default function PublicResetPasswordPage() {
       return;
     }
     setLoading(true);
+    
+    const supabase = createClient();
     const { error: updateError } = await supabase.auth.updateUser({ password });
+    
     setLoading(false);
     if (updateError) {
       setError(updateError.message);
