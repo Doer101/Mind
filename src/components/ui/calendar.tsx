@@ -25,13 +25,25 @@ type TodosByDate = {
   [date: string]: Todo[];
 };
 
-export default function CalendarWithTodos() {
+type CalendarProps = {
+  onDayClick?: (date: Date) => void;
+  [key: string]: any;
+};
+
+export default function CalendarWithTodos({ onDayClick, ...props }: CalendarProps) {
   const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [todos, setTodos] = useState<TodosByDate>({});
   const [inputVal, setInputVal] = useState("");
   const today = new Date();
+
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date);
+    if (onDayClick) {
+      onDayClick(date);
+    }
+  };
 
   const addTodo = (date: Date, title: string) => {
     const dateStr = format(date, "yyyy-MM-dd");
@@ -153,7 +165,7 @@ export default function CalendarWithTodos() {
           <button
             type="button"
             key={day.toString()}
-            onClick={() => setSelectedDate(cloneDay)}
+            onClick={() => handleDateClick(cloneDay)}
             className={cn(
               "relative w-10 h-10 flex items-center justify-center text-base font-medium rounded-full",
               selectedDate?.toDateString() === day.toDateString()
@@ -310,7 +322,6 @@ export default function CalendarWithTodos() {
       {renderHeader()}
       {renderDays()}
       {renderCells()}
-      {renderTodoPanel()}
     </>
   );
 }

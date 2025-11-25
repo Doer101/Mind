@@ -11,64 +11,184 @@ export type TodosByDate = {
   [date: string]: TodoItem[];
 };
 
-const STORAGE_KEY = "calendar_todos";
-
-function loadTodos(): TodosByDate {
-  if (typeof window === "undefined") return {};
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveTodos(todos: TodosByDate) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-}
+type DbTodo = {
+  id: string;
+  user_id: string;
+  date: string;
+  text: string;
+  color: string;
+  completed: boolean;
+  created_at: string;
+};
 
 export function useTodos() {
   const [todosByDate, setTodosByDate] = useState<TodosByDate>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Fetch todos from database on mount
   useEffect(() => {
-    setTodosByDate(loadTodos());
+    fetchTodos();
   }, []);
 
-  useEffect(() => {
-    saveTodos(todosByDate);
-  }, [todosByDate]);
+  async function fetchTodos() {
+    try {
+      console.log("useTodos: Starting fetchTodos");
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch("/api/todos");
+      console.log("useTodos: Response status:", response.status);
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch todos");
+      }
 
-  function addTodo(date: string, text: string, color: string) {
-    setTodosByDate((prev) => {
-      const newTodo: TodoItem = {
-        id: Math.random().toString(36).substr(2, 9),
-        text,
-        color,
-        completed: false,
-      };
-      return {
+      const { todos } = await response.json();
+      console.log("useTodos: Received todos from API:", todos);
+      
+      // Convert array of todos to todosByDate object
+      const grouped: TodosByDate = {};
+      todos.forEach((todo: DbTodo) => {
+        if (!grouped[todo.date]) {
+          grouped[todo.date] = [];
+        }
+        grouped[todo.date].push({
+          id: todo.id,
+          text: todo.text,
+          color: todo.color,
+          completed: todo.completed,
+        });
+      });
+
+      console.log("useTodos: Grouped todos by date:", grouped);
+      setTodosByDate(grouped);
+      console.log("useTodos: State updated with grouped todos");
+    } catch (err) {
+      console.error("Error fetching todos:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch todos");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function addTodo(date: string, text: string, color: string) {
+    // Optimistic update
+    const tempId = `temp-${Date.now()}`;
+    const newTodo: TodoItem = {
+      id: tempId,
+      text,
+      color,
+      completed: false,
+    };
+
+    setTodosByDate((prev) => ({
+      ...prev,
+      [date]: prev[date] ? [...prev[date], newTodo] : [newTodo],
+    }));
+
+    try {
+      const response = await fetch("/api/todos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, text, color }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to add todo");
+      }
+
+      const { todo } = await response.json();
+
+      // Replace temp todo with real one from server
+      setTodosByDate((prev) => ({
         ...prev,
-        [date]: prev[date] ? [...prev[date], newTodo] : [newTodo],
-      };
-    });
+        [date]: prev[date].map((t) => (t.id === tempId ? {
+          id: todo.id,
+          text: todo.text,
+          color: todo.color,
+          completed: todo.completed,
+        } : t)),
+      }));
+    } catch (err) {
+      console.error("Error adding todo:", err);
+      // Rollback optimistic update
+      setTodosByDate((prev) => ({
+        ...prev,
+        [date]: prev[date].filter((t) => t.id !== tempId),
+      }));
+      setError(err instanceof Error ? err.message : "Failed to add todo");
+    }
   }
 
-  function updateTodo(date: string, id: string, updates: Partial<TodoItem>) {
-    setTodosByDate((prev) => {
-      const items = prev[date]?.map((item) =>
+  async function updateTodo(date: string, id: string, updates: Partial<TodoItem>) {
+    // Optimistic update
+    const previousState = { ...todosByDate };
+    
+    setTodosByDate((prev) => ({
+      ...prev,
+      [date]: prev[date]?.map((item) =>
         item.id === id ? { ...item, ...updates } : item
-      ) || [];
-      return { ...prev, [date]: items };
-    });
+      ) || [],
+    }));
+
+    try {
+      const response = await fetch("/api/todos", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...updates }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update todo");
+      }
+
+      const { todo } = await response.json();
+
+      // Update with server response
+      setTodosByDate((prev) => ({
+        ...prev,
+        [date]: prev[date]?.map((item) =>
+          item.id === id ? {
+            id: todo.id,
+            text: todo.text,
+            color: todo.color,
+            completed: todo.completed,
+          } : item
+        ) || [],
+      }));
+    } catch (err) {
+      console.error("Error updating todo:", err);
+      // Rollback optimistic update
+      setTodosByDate(previousState);
+      setError(err instanceof Error ? err.message : "Failed to update todo");
+    }
   }
 
-  function deleteTodo(date: string, id: string) {
-    setTodosByDate((prev) => {
-      const items = prev[date]?.filter((item) => item.id !== id) || [];
-      return { ...prev, [date]: items };
-    });
+  async function deleteTodo(date: string, id: string) {
+    // Optimistic update
+    const previousState = { ...todosByDate };
+    
+    setTodosByDate((prev) => ({
+      ...prev,
+      [date]: prev[date]?.filter((item) => item.id !== id) || [],
+    }));
+
+    try {
+      const response = await fetch(`/api/todos?id=${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete todo");
+      }
+    } catch (err) {
+      console.error("Error deleting todo:", err);
+      // Rollback optimistic update
+      setTodosByDate(previousState);
+      setError(err instanceof Error ? err.message : "Failed to delete todo");
+    }
   }
 
-  return { todosByDate, addTodo, updateTodo, deleteTodo };
+  return { todosByDate, addTodo, updateTodo, deleteTodo, loading, error, refetch: fetchTodos };
 }
