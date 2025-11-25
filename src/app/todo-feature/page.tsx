@@ -12,18 +12,19 @@ export default function TodoFeaturePage() {
   React.useEffect(() => {
     const now = new Date();
     setToday(now);
-    setSelectedDate(now.toISOString().slice(0, 10));
+    // Use local date instead of UTC
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    setSelectedDate(`${year}-${month}-${day}`);
   }, []);
 
   function handleDateSelect(date: Date) {
-    if (!today) return;
-    const todayMidnight = new Date(today);
-    todayMidnight.setHours(0, 0, 0, 0);
-    if (date >= todayMidnight) {
-      setSelectedDate(date.toISOString().slice(0, 10));
-    } else {
-      console.log("Cannot select past dates");
-    }
+    // Use local date instead of UTC to avoid timezone issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    setSelectedDate(`${year}-${month}-${day}`);
   }
 
   return (
@@ -97,6 +98,22 @@ export default function TodoFeaturePage() {
             </CardContent>
           </Card>
         </div>
+        
+        {/* Todo List Section */}
+        {selectedDate && (
+          <div className="flex justify-center items-start w-full mt-8">
+            <Card className="bg-black/80 border-white/10 w-full max-w-2xl mx-auto">
+              <CardHeader>
+                <CardTitle className="text-center text-white">
+                  To-Do List for {selectedDate}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TodoList date={selectedDate} />
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </>
   );
