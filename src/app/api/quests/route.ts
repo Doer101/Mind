@@ -56,14 +56,14 @@ async function callDeepSeekAPI(messages: any[]) {
       max_tokens: 500,
       top_p: 0.95,
     });
-    return chatCompletion.choices[0].message.content;
+    return chatCompletion.choices?.[0]?.message?.content ?? null;
   } catch (error) {
     console.error("DeepSeek API Call Failed:", error);
     throw error;
   }
 }
 
-// Helper function to get fallback quests
+// === FALLBACKS ===
 function getFallbackQuests(): Quest[] {
   return [
     {
@@ -71,150 +71,232 @@ function getFallbackQuests(): Quest[] {
       description: "Create something new using your favorite tools or medium.",
       type: "creative",
       xp: 15,
-      deadlineHours: 24
+      deadlineHours: 24,
     },
     {
       title: "Reflect and Write",
       description: "Take 10 minutes to journal about your recent progress.",
       type: "journal",
       xp: 10,
-      deadlineHours: 24
+      deadlineHours: 24,
     },
     {
       title: "Learn Something New",
       description: "Spend time learning a new skill or concept today.",
       type: "challenge",
       xp: 15,
-      deadlineHours: 24
-    }
+      deadlineHours: 24,
+    },
   ];
 }
 
-// Helper function to extract quest objects from raw text when JSON parsing fails
+type Quest = {
+  title: string;
+  description: string;
+  type: "creative" | "journal" | "mindset" | "reflection" | "challenge";
+  xp: number;
+  deadlineHours: number;
+};
+
+const VALID_QUEST_TYPES = ["creative", "journal", "mindset", "reflection", "challenge"] as const;
+
+// --- Small helpers ---
+function stripThinkTags(s: string): string {
+  return (s || "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
+
+function extractJsonArraySlice(raw: string): string | null {
+  if (!raw || typeof raw !== "string") return null;
+  const completeMatch = raw.match(/(\[[\s\S]*?\])/);
+  if (completeMatch) return completeMatch[0];
+
+  const startIndex = raw.search(/\[\s*{/);
+  if (startIndex === -1) return null;
+
+  let partial = raw.slice(startIndex);
+  let openBraces = (partial.match(/{/g) || []).length;
+  let closeBraces = (partial.match(/}/g) || []).length;
+  let openBrackets = (partial.match(/\[/g) || []).length;
+  let closeBrackets = (partial.match(/\]/g) || []).length;
+
+  while (openBraces > closeBraces) {
+    partial += "}";
+    closeBraces++;
+  }
+  while (openBrackets > closeBrackets) {
+    partial += "]";
+    closeBrackets++;
+  }
+
+  return partial;
+}
+
+function sanitizeJsonish(s: string): string {
+  return (s || "")
+    .replace(/^\uFEFF/, "")           // remove BOM
+    .replace(/&quot;/g, '"')          // common HTML escapes
+    .replace(/&amp;/g, "&")
+    .replace(/,\s*([}\]])/g, "$1")    // trailing commas
+    .replace(/(\{|,)\s*([a-zA-Z_][\w-]*)\s*:/g, '$1"$2":') // quote bare keys
+    .replace(/:\s*([a-zA-Z_][\w-]*)\s*([,}\]])/g, ':"$1"$2') // bare string values
+    .replace(/[\u0000-\u0019]+/g, ""); // remove control chars
+}
+
+// Extract top-level {...} objects by counting braces
+function extractTopLevelObjects(s: string): string[] {
+  const objs: string[] = [];
+  if (!s) return objs;
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === "{") {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === "}") {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0 && start !== -1) {
+        objs.push(s.slice(start, i + 1));
+        start = -1;
+      }
+    }
+  }
+  return objs;
+}
+
+// Lenient fallback extractor that searches for quoted "title"/"description" pairs
 function extractQuestsFromRawResponse(response: string): Quest[] {
   const quests: Quest[] = [];
-  
-  // Try to find quest-like patterns in the text - more flexible patterns
+  if (!response) return quests;
+
   const titlePattern = /"title"\s*:\s*"([^"]*?)"/g;
   const descriptionPattern = /"description"\s*:\s*"([^"]*?)"/g;
   const typePattern = /"type"\s*:\s*"([^"]*?)"/g;
-  const xpPattern = /"xp"\s*:\s*(\d*)/g;
-  const deadlinePattern = /"deadlineHours"\s*:\s*(\d*)/g;
-  
-  // Extract all matches using exec() instead of matchAll() for compatibility
+  const xpPattern = /"xp"\s*:\s*(\d+)/g;
+  const deadlinePattern = /"deadlineHours"\s*:\s*(\d+)/g;
+
   const titles: string[] = [];
-  let titleMatch;
-  while ((titleMatch = titlePattern.exec(response)) !== null) {
-    titles.push(titleMatch[1]);
-  }
-  
+  let m;
+  while ((m = titlePattern.exec(response)) !== null) titles.push(m[1]);
+
   const descriptions: string[] = [];
-  let descMatch;
-  while ((descMatch = descriptionPattern.exec(response)) !== null) {
-    descriptions.push(descMatch[1]);
-  }
-  
+  while ((m = descriptionPattern.exec(response)) !== null) descriptions.push(m[1]);
+
   const types: string[] = [];
-  let typeMatch;
-  while ((typeMatch = typePattern.exec(response)) !== null) {
-    types.push(typeMatch[1]);
-  }
-  
+  while ((m = typePattern.exec(response)) !== null) types.push(m[1]);
+
   const xps: number[] = [];
-  let xpMatch;
-  while ((xpMatch = xpPattern.exec(response)) !== null) {
-    const xpValue = xpMatch[1] ? parseInt(xpMatch[1]) : 10;
-    xps.push(xpValue);
-  }
-  
+  while ((m = xpPattern.exec(response)) !== null) xps.push(parseInt(m[1], 10));
+
   const deadlines: number[] = [];
-  let deadlineMatch;
-  while ((deadlineMatch = deadlinePattern.exec(response)) !== null) {
-    const deadlineValue = deadlineMatch[1] ? parseInt(deadlineMatch[1]) : 24;
-    deadlines.push(deadlineValue);
+  while ((m = deadlinePattern.exec(response)) !== null) deadlines.push(parseInt(m[1], 10));
+
+  const max = Math.max(titles.length, descriptions.length, types.length, xps.length, deadlines.length);
+
+  for (let i = 0; i < max; i++) {
+    if (!titles[i] || !descriptions[i]) continue;
+    let type = (types[i] || "challenge").toLowerCase();
+    if (!VALID_QUEST_TYPES.includes(type as any)) type = "challenge";
+    quests.push({
+      title: titles[i].trim(),
+      description: descriptions[i].trim(),
+      type: type as Quest["type"],
+      xp: xps[i] || 10,
+      deadlineHours: deadlines[i] || 24,
+    });
   }
-  
-  // Create quest objects from extracted data
-  const maxQuests = Math.max(titles.length, descriptions.length, types.length, xps.length, deadlines.length);
-  
-  // Valid quest types
-  const validQuestTypes = ["creative", "journal", "mindset", "reflection", "challenge"];
-  
-  for (let i = 0; i < maxQuests; i++) {
-    if (titles[i] && descriptions[i]) {
-      // Normalize the quest type to ensure it's valid
-      let questType = types[i]?.toLowerCase() || "challenge";
-      if (!validQuestTypes.includes(questType as any)) {
-        questType = "challenge"; // Default to challenge if invalid
-      }
-      
-      quests.push({
-        title: titles[i].trim() || "Unknown Quest",
-        description: descriptions[i].trim() || "Complete this quest",
-        type: questType as Quest["type"],
-        xp: xps[i] || 10,
-        deadlineHours: deadlines[i] || 24
-      });
-    }
-  }
-  
-  // If we couldn't extract any quests, try a more lenient approach
+
+  // line-based lax extraction (very last resort)
   if (quests.length === 0) {
-    // Look for any text that might be quest titles and descriptions
-    const lines = response.split('\n');
+    const lines = response.split(/\r?\n/);
     for (const line of lines) {
-      if (line.includes('title') && line.includes('description')) {
-        const titleMatch = line.match(/title.*?:\s*["']?([^"'\n,]+)["']?/i);
-        const descMatch = line.match(/description.*?:\s*["']?([^"'\n,]+)["']?/i);
-        
-        if (titleMatch && descMatch) {
-          quests.push({
-            title: titleMatch[1].trim(),
-            description: descMatch[1].trim(),
-            type: "challenge",
-            xp: 10,
-            deadlineHours: 24
-          });
-        }
-      }
-    }
-  }
-  
-  // If still no quests, try to extract from incomplete JSON patterns
-  if (quests.length === 0) {
-    // Try to find any quest-like objects in the text
-    const questObjectPattern = /\{\s*"title".*?\}/g;
-    let questMatch;
-    while ((questMatch = questObjectPattern.exec(response)) !== null) {
-      const questText = questMatch[0];
-      
-      const titleMatch = questText.match(/"title"\s*:\s*"([^"]*?)"/);
-      const descMatch = questText.match(/"description"\s*:\s*"([^"]*?)"/);
-      const typeMatch = questText.match(/"type"\s*:\s*"([^"]*?)"/);
-      const xpMatch = questText.match(/"xp"\s*:\s*(\d*)/);
-      const deadlineMatch = questText.match(/"deadlineHours"\s*:\s*(\d*)/);
-      
-      if (titleMatch && descMatch) {
-        let questType = typeMatch ? typeMatch[1].toLowerCase() : "challenge";
-        if (!validQuestTypes.includes(questType as any)) {
-          questType = "challenge";
-        }
-        
+      const t = line.match(/title.*?:\s*["']?([^"']{5,80})["']?/i);
+      const d = line.match(/description.*?:\s*["']?([^"']{5,160})["']?/i);
+      if (t && d) {
         quests.push({
-          title: titleMatch[1].trim() || "Unknown Quest",
-          description: descMatch[1].trim() || "Complete this quest",
-          type: questType as Quest["type"],
-          xp: xpMatch && xpMatch[1] ? parseInt(xpMatch[1]) : 10,
-          deadlineHours: deadlineMatch && deadlineMatch[1] ? parseInt(deadlineMatch[1]) : 24
+          title: t[1].trim(),
+          description: d[1].trim(),
+          type: "challenge",
+          xp: 10,
+          deadlineHours: 24,
         });
       }
     }
   }
-  
+
   return quests;
 }
 
-// === GENERATE QUESTS WITH AI ===
+// --- The self-contained tryParseQuestArray function ---
+function tryParseQuestArray(raw: string): Quest[] | null {
+  if (!raw || typeof raw !== "string") return null;
+
+  const cleaned = stripThinkTags(raw);
+  const slice = extractJsonArraySlice(cleaned);
+
+  const normalize = (q: any): Quest | null => {
+    if (!q || typeof q !== "object") return null;
+    const title = typeof q.title === "string" ? q.title.trim() : null;
+    const description = typeof q.description === "string" ? q.description.trim() : null;
+    const typeRaw = q.type != null ? String(q.type).toLowerCase() : null;
+    const type: any = VALID_QUEST_TYPES.includes(typeRaw as any) ? (typeRaw as Quest["type"]) : "challenge";
+    const xp = Number.isFinite(Number(q.xp)) ? Math.max(1, Math.min(20, Number(q.xp))) : 10;
+    const deadlineHours = Number.isFinite(Number(q.deadlineHours)) ? Math.max(1, Number(q.deadlineHours)) : 24;
+    if (!title || !description) return null;
+    return { title, description, type, xp, deadlineHours } as Quest;
+  };
+
+  // 1) Try strict parse of the whole array slice
+  if (slice) {
+    try {
+      const strict = sanitizeJsonish(slice);
+      const parsed = JSON.parse(strict);
+      if (Array.isArray(parsed)) {
+        const normalized = parsed.map(normalize).filter(Boolean) as Quest[];
+        if (normalized.length > 0) return normalized;
+      }
+    } catch (err) {
+      console.warn("tryParseQuestArray strict parse failed, falling back to object extraction:", err);
+    }
+  }
+
+  // 2) Object extraction fallback
+  const objectsSource = slice || cleaned;
+  const rawObjects = extractTopLevelObjects(objectsSource);
+
+  const parsedObjects: Quest[] = [];
+  for (const objStr of rawObjects) {
+    try {
+      const objSanitized = sanitizeJsonish(objStr);
+      const parsed = JSON.parse(objSanitized);
+      const normalized = normalize(parsed);
+      if (normalized) parsedObjects.push(normalized);
+    } catch (err) {
+      // second-pass lenient attempt
+      try {
+        const lastClose = objStr.lastIndexOf("}");
+        const trimmed = lastClose !== -1 ? objStr.slice(0, lastClose + 1) : objStr;
+        const moreSanitized = sanitizeJsonish(trimmed);
+        const reparsed = JSON.parse(moreSanitized);
+        const normalized = normalize(reparsed);
+        if (normalized) parsedObjects.push(normalized);
+      } catch (innerErr) {
+        console.warn("Skipping a malformed object during extraction fallback:", innerErr);
+      }
+    }
+  }
+
+  if (parsedObjects.length > 0) return parsedObjects;
+
+  // 3) Gentle regex-based fallback
+  const extractedLenient = extractQuestsFromRawResponse(cleaned);
+  if (extractedLenient && extractedLenient.length > 0) return extractedLenient;
+
+  return null;
+}
+
+
+// === AI-DRIVEN QUEST GENERATION ===
 async function generateQuests(preference?: string[]): Promise<Quest[]> {
   try {
     let userPrefText = "";
@@ -230,147 +312,56 @@ async function generateQuests(preference?: string[]): Promise<Quest[]> {
     ];
 
     const response = await callDeepSeekAPI(messages);
-    // Log only first 100 chars to reduce console output
     console.log(
       "AI Response Preview:",
-      response
-        ? response.substring(0, 100) + (response.length > 100 ? "..." : "")
-        : "No response"
+      response ? response.substring(0, 200) + (response.length > 200 ? "..." : "") : "No response"
     );
 
     if (!response) {
       throw new Error("Empty AI response received.");
     }
 
-    // Remove thinking tags if present
-    const cleanedResponse = response.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-    
-    // Try to extract a complete JSON array
-    let jsonArray;
-    
-    // First attempt: Find a complete JSON array
-    const completeMatch = cleanedResponse.match(/(\[[\s\S]*?\])/);
-    if (completeMatch) {
-      jsonArray = completeMatch[0];
-    } else {
-      // Second attempt: Find the start of a JSON array
-      const startMatch = cleanedResponse.match(/(\[\s*{)/);
-      if (startMatch) {
-        // We found the start of an array, now try to complete it
-        const startIndex = startMatch.index || 0;
-        let partialJson = cleanedResponse.substring(startIndex);
-        
-        // Count open braces and brackets to ensure proper structure
-        let openBraces = (partialJson.match(/{/g) || []).length;
-        let closeBraces = (partialJson.match(/}/g) || []).length;
-        let openBrackets = (partialJson.match(/\[/g) || []).length;
-        let closeBrackets = (partialJson.match(/\]/g) || []).length;
-        
-        // Complete the JSON structure if needed
-        let fixedJson = partialJson;
-        
-        // Close any open objects
-        while (openBraces > closeBraces) {
-          fixedJson += "}";
-          closeBraces++;
-        }
-        
-        // Close any open arrays
-        while (openBrackets > closeBrackets) {
-          fixedJson += "]";
-          closeBrackets++;
-        }
-        
-        jsonArray = fixedJson;
-      } else {
-        console.error("AI Response that failed parsing:", response);
-        throw new Error("No valid JSON array found in AI response.");
-      }
+    const parsed = tryParseQuestArray(response);
+    if (parsed && parsed.length > 0) {
+      // Ensure we return exactly 3 as requested (or fewer if AI returned less)
+      const result = parsed.slice(0, 3);
+      // final normalization guard
+      return result.map((q) => ({
+        title: q.title,
+        description: q.description,
+        type: q.type,
+        xp: Math.max(1, Math.min(20, Math.round(q.xp))),
+        deadlineHours: Math.max(1, Math.round(q.deadlineHours)),
+      }));
     }
-    
-    // Fix unquoted property names and values
-    let processedJson = jsonArray
-      // Fix unquoted property names
-      .replace(/(\{|\,)\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*:/g, '$1"$2":')
-      // Fix unquoted string values
-      .replace(/:\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*([,}])/g, ':"$1"$2')
-      // Fix unquoted array values
-      .replace(/(\[|\s)([a-zA-Z_][a-zA-Z0-9_-]*)(\s*[,|\]])/g, '$1"$2"$3')
-      // Fix incomplete deadlineHours (like "deadlineHours":} or "deadlineHours":])
-      .replace(/"deadlineHours"\s*:\s*([,}\]])/g, '"deadlineHours":24$1')
-      // Fix incomplete xp (like "xp":} or "xp":])
-      .replace(/"xp"\s*:\s*([,}\]])/g, '"xp":10$1')
-      // Fix incomplete type (like "type":} or "type":])
-      .replace(/"type"\s*:\s*([,}\]])/g, '"type":"challenge"$1');
-    
-    let quests;
-    try {
-      quests = JSON.parse(processedJson);
-      
-      // Validate that we have a proper array of quests
-      if (!Array.isArray(quests)) {
-        throw new Error("Parsed result is not an array");
-      }
-      
-      // Ensure each quest has the required properties
-      quests = quests.filter(quest => 
-        quest && 
-        typeof quest === 'object' && 
-        quest.title && 
-        quest.description && 
-        quest.type && 
-        quest.xp
-      );
-      
-      // If we have no valid quests after filtering, use fallback quests
-      if (quests.length === 0) {
-        console.warn("No valid quests after filtering, using fallback quests");
-        quests = getFallbackQuests();
-      }
-      
-      return quests;
-    } catch (parseError) {
-      console.error("JSON Parse Error:", parseError);
-      console.error("Attempted to parse:", processedJson);
-      
-      // Try one more fallback: extract individual quest objects from the raw response
-      try {
-        console.warn("Attempting to extract individual quest objects from raw response");
-        const questObjects = extractQuestsFromRawResponse(cleanedResponse);
-        if (questObjects.length > 0) {
-          console.log(`Successfully extracted ${questObjects.length} quests from raw response`);
-          return questObjects;
-        }
-      } catch (extractionError) {
-        console.error("Quest extraction from raw response also failed:", extractionError);
-      }
-      
-      // Return fallback quests if all parsing attempts fail
-      console.warn("Using fallback quests due to parsing error");
-      const fallbackQuests = getFallbackQuests();
-      
-      // Ensure we return at least 3 quests (or whatever was requested)
-      const targetCount = 3;
-      if (fallbackQuests.length >= targetCount) {
-        return fallbackQuests.slice(0, targetCount);
-      } else {
-        // If we don't have enough fallback quests, duplicate/modify them
-        const extendedQuests = [...fallbackQuests];
-        while (extendedQuests.length < targetCount) {
-          const baseQuest = fallbackQuests[extendedQuests.length % fallbackQuests.length];
-          extendedQuests.push({
-            ...baseQuest,
-            title: `${baseQuest.title} ${extendedQuests.length + 1}`,
-            description: `${baseQuest.description} (Alternative ${extendedQuests.length + 1})`
-          });
-        }
-        return extendedQuests;
-      }
+
+    // fallback: attempt lenient extraction
+    const extracted = extractQuestsFromRawResponse(stripThinkTags(response));
+    if (extracted && extracted.length > 0) {
+      return extracted.slice(0, 3);
     }
+
+    // fallback to hard-coded list
+    console.warn("Using fallback quests due to parsing error");
+    return getFallbackQuests().slice(0, 3);
   } catch (error) {
     console.error("Error generating quests:", error);
-    throw error;
+    // final fallback
+    return getFallbackQuests().slice(0, 3);
   }
+}
+
+// === HELPER TO BUILD DISTINCT PENALTY FROM MISSED QUEST ===
+function buildDistinctPenaltyFromMissed(expired: any): { title: string; description: string; xp: number; deadlineHours: number } {
+  const baseTitle = (expired?.title || "Missed Quest").toString().trim();
+  const baseDesc = (expired?.description || "Complete the missed quest.").toString().trim();
+
+  return {
+    title: `Make-up Sprint: ${baseTitle}`,
+    description: `Do a focused version: ${baseDesc} — 20-minute timer, finish one task.`,
+    xp: 8,
+    deadlineHours: 24,
+  };
 }
 
 // === GET (fetch or create quests if missing) ===
@@ -398,199 +389,159 @@ export async function GET() {
 
     if (questError) {
       console.error("Error fetching quests:", questError);
-      return NextResponse.json(
-        { error: "Failed to fetch quests" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to fetch quests" }, { status: 500 });
     }
 
     // Separate daily and penalty quests
-    const dailyQuests = (quests || []).filter((q) => q.type !== "penalty");
-    const penaltyQuests = (quests || []).filter((q) => q.type === "penalty");
+    const dailyQuests = (quests || []).filter((q: any) => q.type !== "penalty");
+    const penaltyQuests = (quests || []).filter((q: any) => q.type === "penalty");
 
     // Check for expired, incomplete daily quests (deadline < now, not completed)
     const now = new Date();
     console.log("Current time:", now.toISOString());
 
-    // Check for quests whose deadline has passed and are not completed
-    const expiredQuests = dailyQuests.filter((q) => {
-      const deadline = new Date(q.deadline);
-      const isExpired = deadline < now;
-      const isNotCompleted = q.status !== "completed";
-      console.log(
-        `Quest ${q.id}: deadline=${deadline.toISOString()}, expired=${isExpired}, completed=${!isNotCompleted}`
-      );
-      return isExpired && isNotCompleted;
+    const expiredQuests = dailyQuests.filter((q: any) => {
+      try {
+        const deadline = new Date(q.deadline);
+        const isExpired = deadline < now;
+        const isNotCompleted = q.status !== "completed";
+        console.log(`Quest ${q.id}: deadline=${deadline.toISOString()}, expired=${isExpired}, completed=${!isNotCompleted}`);
+        return isExpired && isNotCompleted;
+      } catch {
+        return false;
+      }
     });
 
     console.log(`Found ${expiredQuests.length} expired quests`);
 
     // For each expired, incomplete quest, generate a penalty quest if not already present
-    // Penalty quests are generated independently and don't count toward daily quest limits
-    // They only block new quest generation if they're from previous days and incomplete
     for (const expired of expiredQuests) {
-      const alreadyHasPenalty = penaltyQuests.some(
-        (pq) => pq.penalty_for_quest_id === expired.id
-      );
-      console.log(
-        `Quest ${expired.id} already has penalty: ${alreadyHasPenalty}`
-      );
+      const alreadyHasPenalty = penaltyQuests.some((pq: any) => pq.penalty_for_quest_id === expired.id);
+      console.log(`Quest ${expired.id} already has penalty: ${alreadyHasPenalty}`);
 
-      if (!alreadyHasPenalty) {
-        // 1. Move the missed quest to penalty type and mark as moved
+      if (alreadyHasPenalty) continue;
+
+      // 1. Move the missed quest to penalty type and mark as moved
+      try {
         const { error: moveError } = await supabase
           .from("quests")
           .update({ type: "penalty", status: "moved-to-penalty" })
           .eq("id", expired.id)
           .eq("user_id", user.id);
         if (moveError) {
-          console.error(
-            "Error moving missed quest to penalty type:",
-            moveError
-          );
+          console.error("Error moving missed quest to penalty type:", moveError);
+          // do not abort — we still attempt to create penalty to avoid leaving user stuck
         } else {
           console.log(`Moved quest ${expired.id} to penalty type.`);
         }
+      } catch (e) {
+        console.error("Unexpected error moving quest to penalty:", e);
+      }
 
-        // 2. Generate a new penalty quest using AI
-        let penaltyTitle = `Penalty: ${expired.title}`;
-        let penaltyDescription = `You missed this quest: ${expired.description}. Complete this penalty to redeem yourself!`;
-        let penaltyType = "penalty";
-        let penaltyXP = 5;
-        let penaltyDeadline = new Date(
-          now.getTime() + 24 * 60 * 60 * 1000
-        ).toISOString();
-        try {
-          // Use AI to generate a penalty quest based on the missed quest
-          const penaltyPrompt = [
-            { role: "system", content: QUEST_GENERATION_RULES },
-            {
-              role: "user",
-              content: `Generate 1 penalty quest for: '${expired.title}' - ${expired.description}. Make it challenging. Output ONLY JSON array.`,
-            },
-          ];
-          const aiResponse = await callDeepSeekAPI(penaltyPrompt);
-          // Log only first 100 chars to reduce console output
-          console.log(
-            "Penalty AI Response Preview:",
-            aiResponse
-              ? aiResponse.substring(0, 100) +
-                  (aiResponse.length > 100 ? "..." : "")
-              : "No response"
-          );
-          
-          if (!aiResponse) {
-            console.warn("Empty AI response for penalty quest, using fallback");
-          } else {
-            // Use the same robust JSON parsing as the main generateQuests function
-            const cleanedResponse = aiResponse.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-            
-            // Try to extract a complete JSON array
-            let jsonArray;
-            
-            // First attempt: Find a complete JSON array
-            const completeMatch = cleanedResponse.match(/(\[[\s\S]*?\])/);
-            if (completeMatch) {
-              jsonArray = completeMatch[0];
-            } else {
-              // Second attempt: Find the start of a JSON array
-              const startMatch = cleanedResponse.match(/(\[\s*{)/);
-              if (startMatch) {
-                // We found the start of an array, now try to complete it
-                const startIndex = startMatch.index || 0;
-                let partialJson = cleanedResponse.substring(startIndex);
-                
-                // Count open braces and brackets to ensure proper structure
-                let openBraces = (partialJson.match(/{/g) || []).length;
-                let closeBraces = (partialJson.match(/}/g) || []).length;
-                let openBrackets = (partialJson.match(/\[/g) || []).length;
-                let closeBrackets = (partialJson.match(/\]/g) || []).length;
-                
-                // Complete the JSON structure if needed
-                let fixedJson = partialJson;
-                
-                // Close any open objects
-                while (openBraces > closeBraces) {
-                  fixedJson += "}";
-                  closeBraces++;
-                }
-                
-                // Close any open arrays
-                while (openBrackets > closeBrackets) {
-                  fixedJson += "]";
-                  closeBrackets++;
-                }
-                
-                jsonArray = fixedJson;
-              } else {
-                console.warn("No JSON array found in penalty response, using fallback");
-              }
+      // 2. Generate a new penalty quest using AI (use robust parse and ensure distinctness)
+      let penalty = buildDistinctPenaltyFromMissed(expired);
+
+      try {
+        const penaltyPrompt = [
+          { role: "system", content: QUEST_GENERATION_RULES },
+          {
+            role: "user",
+            content: `Generate 1 penalty quest for: '${expired.title}' - ${expired.description}. Make it challenging. Output ONLY JSON array.`,
+          },
+        ];
+
+        const aiResponse = await callDeepSeekAPI(penaltyPrompt);
+        console.log("Penalty AI Response Preview:", aiResponse ? aiResponse.substring(0, 200) : "No response");
+
+        if (aiResponse) {
+          const parsed = tryParseQuestArray(aiResponse);
+          if (parsed && parsed.length > 0) {
+            const q = parsed[0];
+            penalty = {
+              title: q.title || penalty.title,
+              description: q.description || penalty.description,
+              xp: q.xp || penalty.xp,
+              deadlineHours: q.deadlineHours || penalty.deadlineHours,
+            };
+
+            // Ensure it's not textually identical to the moved quest
+            const sameTitle = (penalty.title || "").trim() === (expired.title || "").toString().trim();
+            const sameDesc = (penalty.description || "").trim() === (expired.description || "").toString().trim();
+            if (sameTitle || sameDesc) {
+              const distinct = buildDistinctPenaltyFromMissed(expired);
+              if (sameTitle) penalty.title = distinct.title;
+              if (sameDesc) penalty.description = distinct.description;
             }
-            
-            if (jsonArray) {
-              // Fix unquoted property names and values
-              let processedJson = jsonArray
-                // Fix unquoted property names
-                .replace(/(\{|\,)\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*:/g, '$1"$2":')
-                // Fix unquoted string values
-                .replace(/:\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*([,}])/g, ':"$1"$2')
-                // Fix unquoted array values
-                .replace(/(\[|\s)([a-zA-Z_][a-zA-Z0-9_-]*)(\s*[,|\]])/g, '$1"$2"$3');
-              
-              try {
-                const aiQuests = JSON.parse(processedJson);
-                if (Array.isArray(aiQuests) && aiQuests.length > 0) {
-                  penaltyTitle = aiQuests[0].title || penaltyTitle;
-                  penaltyDescription = aiQuests[0].description || penaltyDescription;
-                  penaltyType = "penalty"; // Always set as penalty
-                  penaltyXP = aiQuests[0].xp || penaltyXP;
-                  penaltyDeadline = new Date(
-                    now.getTime() +
-                      (aiQuests[0].deadlineHours || 24) * 60 * 60 * 1000
-                  ).toISOString();
-                }
-              } catch (parseError) {
-                console.error("Penalty JSON Parse Error:", parseError);
-                console.error("Attempted to parse:", processedJson);
-                // Continue with default values if parsing fails
-              }
+          } else {
+            // fallback extract
+            const extracted = extractQuestsFromRawResponse(stripThinkTags(aiResponse));
+            if (extracted.length > 0) {
+              const q = extracted[0];
+              penalty = {
+                title: q.title || penalty.title,
+                description: q.description || penalty.description,
+                xp: q.xp || penalty.xp,
+                deadlineHours: q.deadlineHours || penalty.deadlineHours,
+              };
+            } else {
+              console.warn("Penalty AI parse failed; using distinct fallback.");
             }
           }
-        } catch (err) {
-          console.error(
-            "AI penalty quest generation failed, using fallback template.",
-            err
-          );
-        }
-
-        // Create penalty quest WITHOUT quest_set_id (penalty quests are independent)
-        // Penalty quests don't count toward the daily quest limit and are generated independently
-        // They only block new quest generation if they're from previous days and incomplete
-        const { data: penaltyQuest, error: penaltyError } = await supabase
-          .from("quests")
-          .insert({
-            title: penaltyTitle,
-            description: penaltyDescription,
-            difficulty: "hard",
-            xp_reward: penaltyXP,
-            type: penaltyType,
-            status: "active",
-            user_id: user.id,
-            progress: 0,
-            deadline: penaltyDeadline,
-            penalty_for_quest_id: expired.id,
-            for_date: expired.for_date || expired.created_at.split("T")[0],
-            // Note: penalty quests don't have quest_set_id - they're independent
-          })
-          .select();
-
-        if (penaltyError) {
-          console.error("Error creating penalty quest:", penaltyError);
         } else {
-          console.log("Successfully created penalty quest:", penaltyQuest);
+          console.warn("Empty AI response for penalty quest; using distinct fallback.");
         }
+      } catch (err) {
+        console.error("AI penalty quest generation failed; using distinct fallback.", err);
+      }
 
-        // 3. Deduct 20 XP from the user
+      // 2.a Idempotency guard: avoid inserting near-identical penalty for same expired.id
+      try {
+        const { data: existingSimilar } = await supabase
+          .from("quests")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("type", "penalty")
+          .eq("penalty_for_quest_id", expired.id)
+          .eq("title", penalty.title)
+          .eq("description", penalty.description)
+          .limit(1);
+
+        if (existingSimilar && existingSimilar.length > 0) {
+          console.log("Similar penalty already exists; skipping insert.");
+        } else {
+          // Compose deadline ISO
+          const penaltyDeadlineISO = new Date(now.getTime() + (penalty.deadlineHours || 24) * 60 * 60 * 1000).toISOString();
+
+          const { data: penaltyQuest, error: penaltyError } = await supabase
+            .from("quests")
+            .insert({
+              title: penalty.title,
+              description: penalty.description,
+              difficulty: penalty.xp > 15 ? "hard" : penalty.xp > 10 ? "medium" : "easy",
+              xp_reward: penalty.xp,
+              type: "penalty",
+              status: "active",
+              user_id: user.id,
+              progress: 0,
+              deadline: penaltyDeadlineISO,
+              penalty_for_quest_id: expired.id,
+              for_date: expired.for_date || (expired.created_at ? expired.created_at.split("T")[0] : new Date().toISOString().split("T")[0]),
+              quest_set_id: null,
+            })
+            .select();
+
+          if (penaltyError) {
+            console.error("Error creating penalty quest:", penaltyError);
+          } else {
+            console.log("Successfully created penalty quest:", penaltyQuest);
+          }
+        }
+      } catch (err) {
+        console.error("Error while inserting penalty quest (idempotency guard or insert):", err);
+      }
+
+      // 3. Deduct 20 XP from the user (best-effort)
+      try {
         const { error: xpError } = await supabase.rpc("increment_user_xp", {
           uid: user.id,
           xp_amount: -20,
@@ -600,26 +551,24 @@ export async function GET() {
         } else {
           console.log("Deducted 20 XP from user for missed quest.");
         }
+      } catch (err) {
+        console.error("RPC increment_user_xp failed:", err);
       }
     }
 
     // Re-fetch penalty quests in case new ones were added
-    // Include both active penalty quests and quests that were moved to penalty status
-    const { data: updatedPenaltyQuests, error: penaltyFetchError } =
-      await supabase
-        .from("quests")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("type", "penalty")
-        .in("status", ["active", "moved-to-penalty"]);
+    const { data: updatedPenaltyQuests, error: penaltyFetchError } = await supabase
+      .from("quests")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("type", "penalty")
+      .in("status", ["active", "moved-to-penalty"]);
 
     if (penaltyFetchError) {
       console.error("Error fetching penalty quests:", penaltyFetchError);
     }
 
-    console.log(
-      `Returning ${dailyQuests.length} daily quests and ${(updatedPenaltyQuests || []).length} penalty quests`
-    );
+    console.log(`Returning ${dailyQuests.length} daily quests and ${(updatedPenaltyQuests || []).length} penalty quests`);
 
     return NextResponse.json({
       dailyQuests,
@@ -627,10 +576,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Error in GET /api/quests:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -652,7 +598,7 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Declare 'today' only once
+    // Declare 'today' only once (start of day)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -665,29 +611,20 @@ export async function POST() {
       .neq("status", "completed")
       .lt("created_at", today.toISOString());
 
-    console.log(
-      `Found ${oldPenaltyQuests?.length || 0} incomplete penalty quests from previous days`
-    );
+    console.log(`Found ${oldPenaltyQuests?.length || 0} incomplete penalty quests from previous days`);
 
     if ((oldPenaltyQuests?.length || 0) > 0) {
-      console.log(
-        "Blocking quest generation due to incomplete penalty quests from previous days"
-      );
+      console.log("Blocking quest generation due to incomplete penalty quests from previous days");
       return NextResponse.json(
         {
-          error:
-            "You must complete all previous day's penalty quests before generating new quests.",
+          error: "You must complete all previous day's penalty quests before generating new quests.",
         },
         { status: 400 }
       );
     }
 
     // Fetch user quest preference
-    const { data: userData } = await supabase
-      .from("users")
-      .select("quest_preference")
-      .eq("id", user.id)
-      .single();
+    const { data: userData } = await supabase.from("users").select("quest_preference").eq("id", user.id).single();
     const questPreference = userData?.quest_preference || [];
 
     // Enforce max 9 daily quests per day (rolling window) - EXCLUDE penalty quests
@@ -697,62 +634,40 @@ export async function POST() {
       .from("quests")
       .select("*")
       .eq("user_id", user.id)
-      .neq("type", "penalty") // Exclude penalty quests from daily limit
+      .neq("type", "penalty")
       .gte("created_at", today.toISOString())
       .lt("created_at", tomorrow.toISOString());
 
-    console.log(
-      `Found ${todaysQuests?.length || 0} daily quests today (excluding penalty quests)`
-    );
+    console.log(`Found ${todaysQuests?.length || 0} daily quests today (excluding penalty quests)`);
 
     if ((todaysQuests?.length || 0) >= 9) {
-      return NextResponse.json(
-        { error: "You have reached the daily quest limit (9)." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "You have reached the daily quest limit (9)." }, { status: 400 });
     }
 
     // Always generate 3 quests per set
     const generatedQuests = (await generateQuests(questPreference)).slice(0, 3);
     const remaining = 9 - (todaysQuests?.length || 0);
 
-    console.log(
-      `Generated ${generatedQuests.length} quests, remaining slots: ${remaining}`
-    );
+    console.log(`Generated ${generatedQuests.length} quests, remaining slots: ${remaining}`);
 
     if (remaining <= 0) {
       console.log("No remaining slots for new quests today");
-      return NextResponse.json(
-        { error: "No more quests can be generated today." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No more quests can be generated today." }, { status: 400 });
     }
     const questsToInsert = generatedQuests.slice(0, Math.min(3, remaining));
 
-    console.log(
-      `Will insert ${questsToInsert.length} quests out of ${generatedQuests.length} generated`
-    );
+    console.log(`Will insert ${questsToInsert.length} quests out of ${generatedQuests.length} generated`);
 
     if (questsToInsert.length === 0) {
       console.log("No quests to insert after filtering");
-      return NextResponse.json(
-        { error: "No more quests can be generated today." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No more quests can be generated today." }, { status: 400 });
     }
 
     // Create a new quest_set
-    const { data: questSet, error: questSetError } = await supabase
-      .from("quest_sets")
-      .insert({ user_id: user.id })
-      .select()
-      .single();
+    const { data: questSet, error: questSetError } = await supabase.from("quest_sets").insert({ user_id: user.id }).select().single();
     if (questSetError || !questSet) {
       console.error("Error creating quest set:", questSetError);
-      return NextResponse.json(
-        { error: "Failed to create quest set" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to create quest set" }, { status: 500 });
     }
 
     console.log(`Created quest set with ID: ${questSet.id}`);
@@ -765,26 +680,19 @@ export async function POST() {
       title: quest.title,
       description: quest.description,
       difficulty: quest.xp > 15 ? "hard" : quest.xp > 10 ? "medium" : "easy",
-      xp_reward: quest.xp,
+      xp_reward: Math.max(1, Math.min(20, Math.round(quest.xp))),
       type: quest.type,
       status: "active",
       user_id: user.id,
       progress: 0,
-      deadline: new Date(
-        now.getTime() + (quest.deadlineHours || 24) * 60 * 60 * 1000
-      ).toISOString(),
+      deadline: new Date(now.getTime() + (quest.deadlineHours || 24) * 60 * 60 * 1000).toISOString(),
       quest_set_id: questSet.id,
       for_date: todayDate.toISOString().split("T")[0],
     }));
 
-    // ✅ Validate quests before inserting
+    // Validate quests before inserting
     const validQuests = questsWithSet.filter(
-      (q: any) =>
-        q.title &&
-        q.description &&
-        q.type &&
-        q.xp_reward &&
-        q.deadline
+      (q: any) => q.title && q.description && q.type && q.xp_reward && q.deadline
     );
 
     if (validQuests.length !== questsWithSet.length) {
@@ -792,44 +700,21 @@ export async function POST() {
     }
 
     if (validQuests.length > 0) {
-      const { data: insertedQuests, error: insertError } = await supabase
-        .from("quests")
-        .insert(validQuests)
-        .select();
+      const { data: insertedQuests, error: insertError } = await supabase.from("quests").insert(validQuests).select();
 
       if (insertError) {
         console.error("Error inserting quests:", insertError);
-        return NextResponse.json(
-          { error: "Failed to insert quests" },
-          { status: 500 }
-        );
+        return NextResponse.json({ error: "Failed to insert quests" }, { status: 500 });
       }
 
-      console.log(
-        `Inserted ${validQuests.length} valid quests in quest set ${questSet.id}`
-      );
+      console.log(`Inserted ${validQuests.length} valid quests in quest set ${questSet.id}`);
       return NextResponse.json({ quests: insertedQuests });
     } else {
       console.error("❌ No valid quests to insert. AI returned invalid JSON.");
-      return NextResponse.json(
-        { error: "No valid quests to insert." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No valid quests to insert." }, { status: 400 });
     }
   } catch (error) {
     console.error("Error in POST /api/quests:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-
-// === TYPE DEFINITIONS (optional, for TypeScript help) ===
-type Quest = {
-  title: string;
-  description: string;
-  type: "creative" | "journal" | "mindset" | "reflection" | "challenge";
-  xp: number;
-  deadlineHours: number;
-};
