@@ -4,20 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 // GET /api/todos - Get all todos for the authenticated user
 export async function GET(request: NextRequest) {
   try {
-    console.log("GET /api/todos - Starting request");
     const supabase = await createClient();
-    console.log("Supabase client created");
     
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    console.log("Auth check result:", { user: user?.id, authError });
     
     if (authError || !user) {
-      console.error("Authentication failed:", authError);
       return NextResponse.json({ error: "Unauthorized", details: authError?.message }, { status: 401 });
     }
-
-    console.log(`Fetching todos for user: ${user.id}`);
     
     // Get all todos for this user
     const { data: todos, error } = await supabase
@@ -31,7 +25,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    console.log(`Successfully fetched ${todos?.length || 0} todos`);
     return NextResponse.json({ todos });
   } catch (error) {
     console.error("Error in GET /api/todos:", error);

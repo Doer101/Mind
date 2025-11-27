@@ -2,8 +2,7 @@
 import React, { useState } from "react";
 import { CalendarWithTodos } from "@/components/calendar-with-todos";
 import { TodoList } from "@/components/todo-list";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Calendar as CalendarIcon, CheckCircle2, ListTodo } from "lucide-react";
 
 export default function TodoFeaturePage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -12,7 +11,6 @@ export default function TodoFeaturePage() {
   React.useEffect(() => {
     const now = new Date();
     setToday(now);
-    // Use local date instead of UTC
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
@@ -20,7 +18,6 @@ export default function TodoFeaturePage() {
   }, []);
 
   function handleDateSelect(date: Date) {
-    // Use local date instead of UTC to avoid timezone issues
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -28,93 +25,137 @@ export default function TodoFeaturePage() {
   }
 
   return (
-    <>
-      <div className="container mx-auto px-4 py-12">
-        <div className="text-center mb-8 md:mb-12 space-y-3 md:space-y-4 px-2 md:px-0">
-          <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-white break-words">
-            To-Do List & Calendar
-          </h2>
-          <p className="text-white max-w-full md:max-w-2xl mx-auto text-base md:text-lg px-1 md:px-0">
-            Organize your day with color-coded tasks and a real calendar view.
-            Track your progress visually and stay productive!
+    <div className="min-h-screen w-full bg-black text-white p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header Section */}
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-black/70 border border-white mb-4">
+            <ListTodo className="w-6 h-6 text-white mr-2" />
+            <span className="text-sm font-semibold text-white tracking-wider uppercase">Task Management</span>
+          </div>
+          
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white">
+            Your Command Center
+          </h1>
+          
+          <p className="text-white max-w-2xl mx-auto text-lg md:text-xl">
+            Organize, track, and conquer your daily tasks with intelligent calendar integration
           </p>
         </div>
-        <div className="flex justify-center items-start w-full">
-          <Card className="bg-black/80 border-white/10 w-full max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle className="text-center text-white">Calendar</CardTitle>
-            </CardHeader>
-            <CardContent className="w-full p-6 space-y-6">
-              {today && (
-                <CalendarWithTodos
-                  onDateSelect={handleDateSelect}
-                  className="real-calendar-ui w-full"
-                  showYearNavigation={true}
-                  calendarProps={{
-                    disabled: { before: today },
-                    showOutsideDays: false,
-                    fixedWeeks: true,
-                    classNames: {
-                      months: "flex flex-col space-y-2 w-full",
-                      month: "space-y-2 w-full",
-                      caption: "flex justify-center items-center mb-2 py-2",
-                      caption_label: "text-lg font-semibold text-white",
-                      nav: "flex gap-2",
-                      nav_button: "rounded-full bg-white/10 text-white hover:bg-white/20 p-2",
-                      table: "w-full border-separate border-spacing-1",
-                      head_row: "flex",
-                      head_cell: "w-12 h-10 text-center text-xs font-bold text-gray-300 uppercase",
-                      row: "flex w-full",
-                      cell: "w-12 h-12 flex flex-col items-center justify-center relative rounded-lg transition-all duration-200 cursor-pointer hover:bg-white/10",
-                      day: "w-10 h-10 flex items-center justify-center text-base font-medium",
-                      day_selected: "bg-blue-600 text-white",
-                      day_today: "border-2 border-blue-400",
-                      day_outside: "text-gray-500 opacity-50",
-                      day_disabled: "text-gray-500 opacity-50",
-                      day_range_middle: "bg-blue-100 text-blue-800",
-                      day_hidden: "invisible",
-                    },
-                  }}
-                />
-              )}
-              <div className="flex flex-wrap gap-4 mt-4 justify-center">
-                <div className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />
-                  <span className="text-xs text-white">All done</span>
+
+        {/* Main Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
+          
+          {/* Left Column: Calendar */}
+          <div className="lg:col-span-5 xl:col-span-4">
+            <div className="bg-black/70 border border-white rounded-3xl p-6 shadow-none">
+              <div>
+                {/* Calendar Header */}
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white">
+                  <div className="p-2 rounded-xl bg-black border border-white">
+                    <CalendarIcon className="w-5 h-5 text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-white">Calendar</h2>
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" />
-                  <span className="text-xs text-white">Some done</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />
-                  <span className="text-xs text-white">None done</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-full bg-gray-500 inline-block opacity-50" />
-                  <span className="text-xs text-white">Past dates (disabled)</span>
+                
+                {/* Calendar Component */}
+                {today && (
+                  <CalendarWithTodos
+                    onDateSelect={handleDateSelect}
+                    className="w-full"
+                    showYearNavigation={true}
+                    calendarProps={{
+                      classNames: {
+                        months: "flex flex-col space-y-4 w-full",
+                        month: "space-y-4 w-full",
+                        caption: "flex justify-between items-center mb-4 px-2",
+                        caption_label: "text-lg font-bold text-white",
+                        nav: "flex gap-2",
+                        nav_button: "h-9 w-9 rounded-xl bg-black border border-white hover:bg-white hover:text-black text-white flex items-center justify-center transition-all",
+                        table: "w-full border-collapse",
+                        head_row: "grid grid-cols-7 mb-2",
+                        head_cell: "text-center text-xs font-medium text-white uppercase tracking-wider h-8 flex items-center justify-center",
+                        row: "grid grid-cols-7 gap-1 mb-1",
+                        cell: "relative p-0 text-center focus-within:relative focus-within:z-20",
+                        day: "h-11 w-11 rounded-xl flex items-center justify-center text-sm font-medium transition-all hover:bg-white hover:text-black focus:outline-none focus:ring-2 focus:ring-white",
+                        day_selected: "bg-white text-black font-bold scale-110",
+                        day_today: "bg-black text-white border border-white font-bold",
+                        day_outside: "text-gray-700 opacity-50",
+                        day_disabled: "text-gray-800 opacity-30",
+                        day_range_middle: "bg-white/10",
+                        day_hidden: "invisible",
+                      },
+                    }}
+                  />
+                )}
+
+                {/* Legend */}
+                <div className="grid grid-cols-2 gap-3 mt-8 pt-6 border-t border-white">
+                  <div className="flex items-center gap-2 text-xs text-white">
+                    <div className="w-3 h-3 rounded-full bg-green-500" />
+                    <span>Complete</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-white">
+                    <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                    <span>In Progress</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-white">
+                    <div className="w-3 h-3 rounded-full bg-red-500" />
+                    <span>Pending</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-white">
+                    <div className="w-3 h-3 rounded-full border-2 border-white" />
+                    <span>No Tasks</span>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Todo List Section */}
-        {selectedDate && (
-          <div className="flex justify-center items-start w-full mt-8">
-            <Card className="bg-black/80 border-white/10 w-full max-w-2xl mx-auto">
-              <CardHeader>
-                <CardTitle className="text-center text-white">
-                  To-Do List for {selectedDate}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <TodoList date={selectedDate} />
-              </CardContent>
-            </Card>
+            </div>
           </div>
-        )}
+
+          {/* Right Column: Todo List */}
+          <div className="lg:col-span-7 xl:col-span-8">
+            {selectedDate ? (
+              <div className="bg-black/70 border border-white rounded-3xl p-6 md:p-8 shadow-none min-h-[600px]">
+                <div className="h-full flex flex-col">
+                  {/* Todo List Header */}
+                  <div className="mb-8 pb-6 border-b border-white">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 rounded-xl bg-black border border-white">
+                        <CheckCircle2 className="w-5 h-5 text-white" />
+                      </div>
+                      <h2 className="text-2xl md:text-3xl font-bold text-white">Tasks</h2>
+                    </div>
+                    <p className="text-white font-medium text-sm md:text-base ml-14">
+                      {new Date(selectedDate).toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </p>
+                  </div>
+
+                  {/* Todo List Component */}
+                  <div className="flex-1">
+                    <TodoList date={selectedDate} />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="h-full min-h-[600px] flex items-center justify-center bg-black/70 rounded-3xl border border-white border-dashed p-12">
+                <div className="text-center space-y-4">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-black border border-white mb-4">
+                    <CalendarIcon className="w-10 h-10 text-white" />
+                  </div>
+                  <p className="text-white text-lg font-medium">Select a date to view tasks</p>
+                  <p className="text-white text-sm">Click on any date in the calendar to get started</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
       </div>
-    </>
+    </div>
   );
 }

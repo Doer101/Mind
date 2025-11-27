@@ -41,26 +41,56 @@ export function CalendarWithTodos({
 
   // Custom day button rendering
   const renderDayButton = (day: Date, selectedDate: Date | undefined) => {
-    const todos = todosByDate[day.toDateString()] || [];
+    // Convert date to YYYY-MM-DD format to match database format
+    const year = day.getFullYear();
+    const month = String(day.getMonth() + 1).padStart(2, '0');
+    const dayNum = String(day.getDate()).padStart(2, '0');
+    const dateKey = `${year}-${month}-${dayNum}`;
+    
+    const todos = todosByDate[dateKey] || [];
     const completed = todos.filter((t) => t.completed).length;
+    const isSelected = selectedDate?.toDateString() === day.toDateString();
+    
+    // Determine status color
+    let statusColor = "bg-gray-500/20"; // Empty
+    let glowColor = "";
+    
+    if (todos.length > 0) {
+      if (completed === 0) {
+        statusColor = "bg-red-500";
+        glowColor = "shadow-[0_0_8px_rgba(239,68,68,0.6)]";
+      } else if (completed < todos.length) {
+        statusColor = "bg-yellow-400";
+        glowColor = "shadow-[0_0_8px_rgba(250,204,21,0.6)]";
+      } else {
+        statusColor = "bg-green-500";
+        glowColor = "shadow-[0_0_8px_rgba(34,197,94,0.6)]";
+      }
+    }
+
     return (
       <button
         type="button"
         onClick={() => onDateSelect && onDateSelect(day)}
         className={cn(
-          "relative w-10 h-10 flex items-center justify-center text-base font-medium rounded-full transition-colors",
-          selectedDate?.toDateString() === day.toDateString()
-            ? "bg-white text-black"
-            : todos.length === 0
-            ? "bg-transparent text-white hover:bg-white/10"
-            : completed === 0
-            ? "bg-red-500 text-white"
-            : completed < todos.length
-            ? "bg-yellow-500 text-black"
-            : "bg-green-500 text-white"
+          "relative w-10 h-10 flex items-center justify-center text-sm font-medium rounded-full transition-all duration-300 group",
+          isSelected
+            ? "bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] scale-110 z-10"
+            : "text-gray-300 hover:bg-white/10 hover:text-white hover:scale-105"
         )}
       >
         {day.getDate()}
+        
+        {/* Status Indicator */}
+        {todos.length > 0 && (
+          <span
+            className={cn(
+              "absolute bottom-1 w-1.5 h-1.5 rounded-full transition-all duration-300",
+              statusColor,
+              isSelected ? "bg-white shadow-none bottom-1.5" : glowColor
+            )}
+          />
+        )}
       </button>
     );
   };
@@ -69,11 +99,8 @@ export function CalendarWithTodos({
   return (
     <Calendar
       mode="single"
+      todosByDate={todosByDate}
       className={cn("border rounded-lg w-full max-w-[300px] mx-auto", className)}
-      components={{
-        // @ts-ignore
-        DayContent: ({ date, selected }) => renderDayButton(date, selected),
-      }}
       onDayClick={onDateSelect}
       showOutsideDays={true}
       {...(calendarProps as any)}
