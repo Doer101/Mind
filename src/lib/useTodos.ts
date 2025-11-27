@@ -33,19 +33,16 @@ export function useTodos() {
 
   async function fetchTodos() {
     try {
-      console.log("useTodos: Starting fetchTodos");
       setLoading(true);
       setError(null);
       
       const response = await fetch("/api/todos");
-      console.log("useTodos: Response status:", response.status);
       
       if (!response.ok) {
         throw new Error("Failed to fetch todos");
       }
 
       const { todos } = await response.json();
-      console.log("useTodos: Received todos from API:", todos);
       
       // Convert array of todos to todosByDate object
       const grouped: TodosByDate = {};
@@ -61,9 +58,7 @@ export function useTodos() {
         });
       });
 
-      console.log("useTodos: Grouped todos by date:", grouped);
       setTodosByDate(grouped);
-      console.log("useTodos: State updated with grouped todos");
     } catch (err) {
       console.error("Error fetching todos:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch todos");
