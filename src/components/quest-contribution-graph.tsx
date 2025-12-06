@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -47,6 +47,7 @@ export default function QuestContributionGraph({
   const [selectedYear, setSelectedYear] = useState<number>(
     new Date().getFullYear()
   );
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // ✅ Helper for local date normalization
   const normalizeToLocalDateStr = (date: Date) => {
@@ -92,6 +93,15 @@ export default function QuestContributionGraph({
       fetchQuestContributions();
     }
   }, [userId, supabase, selectedYear]);
+
+  // Scroll to end (most recent) on mobile after data loads
+  useEffect(() => {
+    if (!loading && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      // Scroll to the end to show recent contributions
+      container.scrollLeft = container.scrollWidth;
+    }
+  }, [loading, contributions]);
 
   const fetchQuestContributions = async () => {
     if (!supabase) return;
@@ -243,7 +253,8 @@ export default function QuestContributionGraph({
       for (let i = 1; i < sortedDates.length; i++) {
         const currentDate = parseDate(sortedDates[i]);
         const prevDate = parseDate(sortedDates[i - 1]);
-        const diff = (currentDate.getTime() - prevDate.getTime()) / (1000 * 3600 * 24);
+        const diff =
+          (currentDate.getTime() - prevDate.getTime()) / (1000 * 3600 * 24);
 
         if (diff === 1) {
           currentLongest++;
@@ -355,8 +366,7 @@ export default function QuestContributionGraph({
     } completed (${parts.join(", ")})`;
   };
 
-  const getMonthLabels = () => {
-    const labels: string[] = [];
+  const getMonthPositions = () => {
     const monthNames = [
       "Jan",
       "Feb",
@@ -372,225 +382,307 @@ export default function QuestContributionGraph({
       "Dec",
     ];
 
-    selectedYear === new Date().getFullYear();
-
     const today = new Date();
     const isCurrentYear = selectedYear === today.getFullYear();
     const endDate = isCurrentYear ? today : new Date(selectedYear, 11, 31);
     const endWeek = endOfWeek(endDate, 0);
     const startWeek = addWeeks(startOfWeek(endWeek, 0), -51);
 
+    const positions: { month: string; column: number }[] = [];
     let prevMonth = -1;
+
     for (let w = 0; w < 52; w++) {
       const weekStart = addDays(startWeek, w * 7);
       const month = weekStart.getMonth();
+
       if (month !== prevMonth) {
-        labels.push(monthNames[month]);
+        positions.push({
+          month: monthNames[month],
+          column: w,
+        });
         prevMonth = month;
-      } else {
-        labels.push("");
       }
     }
-    return labels;
+
+    return positions;
   };
+
   if (loading || !supabase) {
     return (
-      <Card className="bg-black/70 border-none text-white">
+      <Card className="bg-black/70 border-white/10 text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <Trophy className="h-5 w-5 text-white" /> Quest Contribution Graph
           </CardTitle>
-          <CardDescription className="text-white">
+          <CardDescription className="text-white/70">
             {!supabase ? "Initializing..." : "Loading your quest activity..."}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="animate-pulse">
-            <div className="grid [grid-template-columns:repeat(52,minmax(0,1fr))] gap-1 h-32 bg-white/10 rounded"></div>
+          <div className="animate-pulse space-y-3">
+            <div className="h-24 bg-white/10 rounded"></div>
           </div>
         </CardContent>
       </Card>
     );
   }
 
+  const monthPositions = getMonthPositions();
+
   return (
-    <Card className="bg-black/70 border-none text-white">
+    <Card className="bg-black/70 border-white/10 text-white">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-white">
           <Trophy className="h-5 w-5 text-white" /> Quest Contribution Graph
         </CardTitle>
-        <CardDescription className="text-white">
+        <CardDescription className="text-white/70">
           {totalQuests} quests completed in the last year
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {/* Year Selector */}
-          <div className="flex flex-wrap md:justify-end gap-2 text-xs justify-center">
-            {[0, 1, 2].map((offset) => {
-              const year = new Date().getFullYear() - offset;
-              const isActive = selectedYear === year;
-              return (
-                <button
-                  key={year}
-                  onClick={() => setSelectedYear(year)}
-                  className={
-                    isActive
-                      ? "px-3 py-1 rounded bg-white/10 text-white"
-                      : "px-3 py-1 rounded text-white/70 hover:bg-white/10"
-                  }
+      <CardContent className="space-y-4">
+        {/* Year Selector */}
+        <div className="flex justify-center md:justify-end gap-2">
+          {[0, 1, 2].map((offset) => {
+            const year = new Date().getFullYear() - offset;
+            const isActive = selectedYear === year;
+            return (
+              <button
+                key={year}
+                onClick={() => setSelectedYear(year)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  isActive
+                    ? "bg-white/20 text-white"
+                    : "text-white/60 hover:bg-white/10 hover:text-white/80"
+                }`}
+              >
+                {year}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Stats Cards - Optimized for Mobile */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 p-3 sm:p-4 border border-white/10 rounded-lg bg-white/5">
+            <div className="text-xl sm:text-2xl font-bold text-green-500">
+              {currentStreak}
+            </div>
+            <div className="text-xs sm:text-sm text-white/80 mt-0.5">
+              Current Streak
+            </div>
+            {currentStreak > 0 && (
+              <div className="text-xs text-green-400 mt-1">
+                🔥 {currentStreak} day{currentStreak > 1 ? "s" : ""} strong!
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 p-3 sm:p-4 border border-white/10 rounded-lg bg-white/5">
+            <div className="text-xl sm:text-2xl font-bold text-blue-500">
+              {longestStreak}
+            </div>
+            <div className="text-xs sm:text-sm text-white/80 mt-0.5">
+              Longest Streak
+            </div>
+            {longestStreak > 0 && (
+              <div className="text-xs text-blue-400 mt-1">
+                🏆 Personal best!
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 p-3 sm:p-4 border border-white/10 rounded-lg bg-white/5">
+            <div className="text-xl sm:text-2xl font-bold text-purple-500">
+              {totalQuests}
+            </div>
+            <div className="text-xs sm:text-sm text-white/80 mt-0.5">
+              Total Quests
+            </div>
+            {totalQuests > 0 && (
+              <div className="text-xs text-purple-400 mt-1">
+                ⭐ Great progress!
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Contribution Graph Container */}
+        <div className="border border-white/10 rounded-lg p-3 sm:p-4 bg-white/5 min-w-0">
+          {/* Mobile: Scrollable without day labels */}
+          <div className="md:hidden" style={{ minWidth: 0, maxWidth: '100%' }}>
+            <div 
+              className="overflow-x-scroll pb-2"
+              style={{
+                WebkitOverflowScrolling: 'touch',
+                minWidth: 0,
+                maxWidth: '100%',
+              }}
+            >
+              <div style={{ width: '832px', minWidth: '832px' }}>
+                {/* Month Labels */}
+                <div className="relative h-5 mb-1">
+                  {getMonthPositions().map((pos, idx) => (
+                    <div
+                      key={idx}
+                      className="absolute text-[10px] text-white/70"
+                      style={{
+                        left: `${pos.column * 16}px`,
+                      }}
+                    >
+                      {pos.month}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Contribution Grid */}
+                <div 
+                  className="grid grid-rows-7 grid-flow-col gap-[3px]"
+                  style={{
+                    gridTemplateColumns: 'repeat(52, 13px)',
+                  }}
                 >
-                  {year}
-                </button>
-              );
-            })}
+                  {contributions.map((contribution) => {
+                    const isToday =
+                      contribution.date ===
+                      new Date().toISOString().split("T")[0];
+
+                    return (
+                      <div
+                        key={contribution.date}
+                        className={`w-[13px] h-[13px] rounded-sm cursor-pointer transition-all hover:ring-2 hover:ring-white/50 ${getContributionColor(
+                          contribution
+                        )} ${
+                          isToday
+                            ? "ring-2 ring-white ring-offset-1 ring-offset-black/70"
+                            : ""
+                        }`}
+                        title={`${contribution.date}: ${getTooltipContent(
+                          contribution
+                        )}${isToday ? " (Today)" : ""}`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Stats Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm mt-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {currentStreak}
-              </div>
-              <div className="text-white">Current Streak</div>
-              {currentStreak > 0 && (
-                <div className="text-xs text-green-500 mt-1">
-                  🔥 {currentStreak} day{currentStreak > 1 ? "s" : ""} strong!
-                </div>
-              )}
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">
-                {longestStreak}
-              </div>
-              <div className="text-white">Longest Streak</div>
-              {longestStreak > 0 && (
-                <div className="text-xs text-blue-500 mt-1">
-                  🏆 Personal best!
-                </div>
-              )}
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {totalQuests}
-              </div>
-              <div className="text-white">Total Quests</div>
-              {totalQuests > 0 && (
-                <div className="text-xs text-purple-500 mt-1">
-                  ⭐ Great progress!
-                </div>
-              )}
-            </div>
-          </div>
-          {/* Contribution Graph */}
-          <div className="space-y-2 pb-4">
-            {/* Month Labels (hidden on mobile) */}
-            <div
-              className="hidden sm:grid text-[10px] text-white w-full"
-              style={{
-                gridTemplateColumns: `repeat(52, 1fr)`, // evenly divide full width
-              }}
-            >
-              {getMonthLabels().map((month, index) => (
-                <div key={index} className="text-center">
-                  {month}
-                </div>
-              ))}
+          {/* Desktop: Centered with day labels */}
+          <div className="hidden md:flex justify-center gap-2">
+            {/* Day Labels */}
+            <div className="flex flex-col text-[9px] text-white/60 justify-around pt-5 pb-1">
+              <div>Mon</div>
+              <div>Wed</div>
+              <div>Fri</div>
             </div>
 
-            {/* Heatmap Blocks */}
-            <div
-              className="grid grid-rows-7 grid-flow-col w-full"
-              style={{
-                gridTemplateColumns: `repeat(52, 1fr)`, // evenly fill width
-                gap: "2px", // consistent spacing
-              }}
-            >
-              {contributions.map((contribution) => {
-                const isToday =
-                  contribution.date === new Date().toISOString().split("T")[0];
-
-                return (
+            {/* Graph Content */}
+            <div>
+              {/* Month Labels */}
+              <div className="relative h-5 mb-1" style={{ width: '832px' }}>
+                {getMonthPositions().map((pos, idx) => (
                   <div
-                    key={contribution.date}
-                    className={`aspect-square rounded-[2px] cursor-pointer 
-            transition-transform hover:scale-110
-            ${getContributionColor(contribution)} 
-            ${
-              isToday
-                ? "ring-1 ring-white ring-offset-[0.5px] sm:ring-2 sm:ring-offset-1 ring-offset-black"
-                : ""
-            }
-`}
-                    title={`${contribution.date}: ${getTooltipContent(contribution)}${
-                      isToday ? " (Today)" : ""
-                    }`}
-                  />
-                );
-              })}
+                    key={idx}
+                    className="absolute text-[10px] text-white/70"
+                    style={{
+                      left: `${pos.column * 16}px`,
+                    }}
+                  >
+                    {pos.month}
+                  </div>
+                ))}
+              </div>
+
+              {/* Contribution Grid */}
+              <div 
+                className="grid grid-rows-7 grid-flow-col gap-[3px]"
+                style={{
+                  gridTemplateColumns: 'repeat(52, 13px)',
+                }}
+              >
+                {contributions.map((contribution) => {
+                  const isToday =
+                    contribution.date ===
+                    new Date().toISOString().split("T")[0];
+
+                  return (
+                    <div
+                      key={contribution.date}
+                      className={`w-[13px] h-[13px] rounded-sm cursor-pointer transition-all hover:ring-2 hover:ring-white/50 ${getContributionColor(
+                        contribution
+                      )} ${
+                        isToday
+                          ? "ring-2 ring-white ring-offset-1 ring-offset-black/70"
+                          : ""
+                      }`}
+                      title={`${contribution.date}: ${getTooltipContent(
+                        contribution
+                      )}${isToday ? " (Today)" : ""}`}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          {/* Legends */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-white mt-2 gap-2">
-            <div className="flex flex-wrap justify-center sm:justify-end gap-4">
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-400 rounded-sm"></div>
-                <span>Easy</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-400 rounded-sm"></div>
-                <span>Medium</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-purple-400 rounded-sm"></div>
-                <span>Hard</span>
-              </div>
+          {/* Difficulty Legend */}
+          <div className="flex flex-wrap justify-center sm:justify-end gap-3 mt-3 text-xs text-white/70">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
+              <span>Easy</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 bg-blue-400 rounded-sm"></div>
+              <span>Medium</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 bg-purple-400 rounded-sm"></div>
+              <span>Hard</span>
             </div>
           </div>
+        </div>
 
-          {/* Call to Action (only for current year) */}
-          {selectedYear === new Date().getFullYear() && totalQuests === 0 && (
-            <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 rounded-lg border border-green-200 dark:border-green-800">
+        {/* Call to Action */}
+        {selectedYear === new Date().getFullYear() && totalQuests === 0 && (
+          <div className="p-4 bg-gradient-to-r from-green-950/30 to-blue-950/30 rounded-lg border border-green-800/50">
+            <div className="text-center space-y-2">
+              <h4 className="font-semibold text-green-200">
+                Start Your Quest Journey!
+              </h4>
+              <p className="text-sm text-green-300/80">
+                Complete your first quest to begin building your contribution
+                streak.
+              </p>
+              <Button asChild size="sm" className="mt-2">
+                <Link href="/dashboard/quests">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Generate Quests
+                </Link>
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {selectedYear === new Date().getFullYear() &&
+          totalQuests > 0 &&
+          currentStreak === 0 && (
+            <div className="p-4 bg-gradient-to-r from-orange-950/30 to-red-950/30 rounded-lg border border-orange-800/50">
               <div className="text-center space-y-2">
-                <h4 className="font-semibold text-green-800 dark:text-green-200">
-                  Start Your Quest Journey!
+                <h4 className="font-semibold text-orange-200">
+                  Keep Your Streak Alive!
                 </h4>
-                <p className="text-sm text-green-700 dark:text-green-300">
-                  Complete your first quest to begin building your contribution
-                  streak.
+                <p className="text-sm text-orange-300/80">
+                  Complete a quest today to maintain your momentum.
                 </p>
                 <Button asChild size="sm" className="mt-2">
                   <Link href="/dashboard/quests">
                     <Plus className="w-4 h-4 mr-2" />
-                    Generate Quests
+                    Get New Quests
                   </Link>
                 </Button>
               </div>
             </div>
           )}
-
-          {selectedYear === new Date().getFullYear() &&
-            totalQuests > 0 &&
-            currentStreak === 0 && (
-              <div className="mt-4 p-4 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                <div className="text-center space-y-2">
-                  <h4 className="font-semibold text-orange-800 dark:text-orange-200">
-                    Keep Your Streak Alive!
-                  </h4>
-                  <p className="text-sm text-orange-700 dark:text-orange-300">
-                    Complete a quest today to maintain your momentum.
-                  </p>
-                  <Button asChild size="sm" className="mt-2">
-                    <Link href="/dashboard/quests">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Get New Quests
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            )}
-        </div>
       </CardContent>
     </Card>
   );

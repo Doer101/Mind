@@ -89,25 +89,24 @@ export default function AIFeatures({
   return (
     <Card
       className={cn(
-        "h-full transition-all",
-        "hover:shadow-lg hover:shadow-primary/5",
-        "border-none",
-        "bg-black/70 text-white",
-        "backdrop-blur-sm"
+        "group relative overflow-hidden",
+        "border border-white/20 bg-black/50 backdrop-blur-sm",
+        "transition-all duration-300",
+        "hover:border-white/40 hover:shadow-xl hover:shadow-white/5 hover:-translate-y-1"
       )}
     >
       <CardHeader className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-center gap-3">
           {icon && (
-            <div className="p-2 rounded-lg bg-white/10 text-white self-start sm:self-center">
+            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm group-hover:bg-white/15 transition-colors">
               {icon}
             </div>
           )}
-          <div className="text-center sm:text-left">
+          <div className="flex-1">
             <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight text-white">
               {title}
             </CardTitle>
-            <CardDescription className="text-sm sm:text-base mt-1 text-white">
+            <CardDescription className="text-sm sm:text-base mt-1.5 text-white/70">
               {description}
             </CardDescription>
           </div>
@@ -119,37 +118,39 @@ export default function AIFeatures({
             placeholder="Enter your text here..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="min-h-[80px] sm:min-h-[100px] resize-none bg-black/50 text-white placeholder-white/60 border-white/20 text-sm sm:text-base"
+            className="min-h-[100px] sm:min-h-[120px] resize-none bg-black/50 text-white placeholder-white/50 border-white/20 focus:border-white/40 transition-colors text-sm sm:text-base rounded-lg"
           />
         )}
 
         {type === "daily-prompt" ? (
-          <div className="flex justify-center">
+          <div className="flex justify-center pt-2">
             <Button
               onClick={handleSubmit}
               disabled={loading}
               className={cn(
-                "px-4 sm:px-8 py-4 sm:py-6",
-                "bg-gradient-to-r from-primary to-primary/90",
-                "hover:from-primary/90 hover:to-primary",
+                "px-6 sm:px-10 py-5 sm:py-6",
+                "bg-white/10 hover:bg-white/15",
+                "border border-white/20 hover:border-white/30",
+                "text-white",
                 "text-base sm:text-lg font-semibold",
-                "rounded-full",
+                "rounded-xl",
                 "transition-all duration-300",
-                "hover:scale-105 hover:shadow-lg hover:shadow-primary/20",
+                "hover:scale-[1.02] hover:shadow-lg hover:shadow-white/10",
                 "active:scale-95",
-                "w-full sm:w-auto"
+                "w-full sm:w-auto",
+                "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               )}
             >
               {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-                  Generating...
-                </>
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Generating...</span>
+                </div>
               ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                  Get Today's Prompt
-                </>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5" />
+                  <span>Get Today's Prompt</span>
+                </div>
               )}
             </Button>
           </div>
@@ -157,14 +158,24 @@ export default function AIFeatures({
           <Button
             onClick={handleSubmit}
             disabled={loading || !content}
-            className="w-full border border-white text-white hover:bg-white hover:text-black py-3 sm:py-2"
-            variant="secondary"
+            className={cn(
+              "w-full",
+              "bg-white/10 hover:bg-white/15",
+              "border border-white/20 hover:border-white/30",
+              "text-white",
+              "py-3 sm:py-3.5",
+              "rounded-lg",
+              "transition-all duration-300",
+              "hover:scale-[1.01]",
+              "disabled:opacity-50 disabled:cursor-not-allowed"
+            )}
+            variant="outline"
           >
             {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
-                Processing...
-              </>
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Processing...</span>
+              </div>
             ) : (
               "Generate"
             )}
@@ -172,28 +183,32 @@ export default function AIFeatures({
         )}
 
         {error && (
-          <p className="text-sm text-destructive mt-2 text-center">{error}</p>
+          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+            <p className="text-sm text-red-400 text-center">{error}</p>
+          </div>
         )}
 
         {response && (
           <div
             className={cn(
-              "mt-4 p-4 sm:p-6 rounded-xl",
-              "bg-black/50",
+              "mt-4 p-5 sm:p-6 rounded-xl",
+              "bg-white/5",
               "backdrop-blur-sm",
               "border border-white/20",
               "max-h-[300px] sm:max-h-[400px] overflow-y-auto",
               "transition-all duration-300",
-              "hover:shadow-md hover:shadow-primary/5 text-white"
+              "animate-in fade-in-50 slide-in-from-bottom-3"
             )}
           >
-            <h4 className="font-medium mb-3 text-sm text-white flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-white" />
-              <span className="text-xs sm:text-sm">
-                Today's Creative Prompt:
-              </span>
-            </h4>
-            <p className="whitespace-pre-wrap text-sm sm:text-base leading-relaxed text-white">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-1.5 rounded-lg bg-white/10">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              <h4 className="font-semibold text-sm sm:text-base text-white">
+                Today's Creative Prompt
+              </h4>
+            </div>
+            <p className="whitespace-pre-wrap text-sm sm:text-base leading-relaxed text-white/90">
               {response}
             </p>
           </div>

@@ -111,7 +111,7 @@ export default async function Dashboard() {
   }
 
   return (
-    <div className="flex-1 min-h-screen bg-black text-white overflow-x-clip">
+    <div className="flex-1 min-h-screen bg-black text-white overflow-x-hidden">
       {/* Hero Section - Simplified */}
       <div className="relative bg-black/70 border-b border-white/10">
         <div className="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] opacity-5" />
@@ -130,7 +130,7 @@ export default async function Dashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 sm:space-y-12 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 sm:space-y-12 max-w-7xl mx-auto overflow-x-hidden">
         {/* Quick Stats Grid */}
         <div className="grid gap-6 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {/* User Profile Card */}
@@ -219,11 +219,11 @@ export default async function Dashboard() {
                   className="w-full justify-start border border-white/20 bg-white/5 text-white hover:bg-white/10 hover:border-white/30 transition-all duration-300 hover:scale-[1.02] group/btn h-auto py-3"
                   asChild
                 >
-                  <a href="/dashboard/journal/new">
+                  <a href="/dashboard/journal">
                     <div className="p-2 rounded-lg bg-white/10 mr-3 group-hover/btn:bg-white/15 transition-colors">
                       <PenTool className="h-4 w-4 text-white" />
                     </div>
-                    <span className="font-medium">Write in Journal</span>
+                    <span className="font-medium hover:text-white transition-colors">Write in Journal</span>
                   </a>
                 </Button>
                 <Button
@@ -235,7 +235,7 @@ export default async function Dashboard() {
                     <div className="p-2 rounded-lg bg-white/10 mr-3 group-hover/btn:bg-white/15 transition-colors">
                       <MessageCircle className="h-4 w-4 text-white" />
                     </div>
-                    <span className="font-medium">Chat with AI</span>
+                    <span className="font-medium hover:text-white transition-colors">Chat with AI</span>
                   </a>
                 </Button>
               </div>
@@ -246,7 +246,6 @@ export default async function Dashboard() {
         {/* Weekly Progress Section */}
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="h-1 w-12 bg-white/20 rounded-full"></div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white">Weekly Progress</h2>
           </div>
           <WeeklyProgressGraph />
@@ -255,7 +254,6 @@ export default async function Dashboard() {
         {/* Quest Stats Section */}
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="h-1 w-12 bg-white/20 rounded-full"></div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white">Quest Statistics</h2>
           </div>
           <DashboardQuestStats />
@@ -264,7 +262,6 @@ export default async function Dashboard() {
         {/* Quest Contribution Graph Section */}
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="h-1 w-12 bg-white/20 rounded-full"></div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white">Activity Overview</h2>
           </div>
           <QuestContributionGraph userId={user.id} />
@@ -274,7 +271,6 @@ export default async function Dashboard() {
         {(!prompts || prompts.length === 0) && (
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="h-1 w-12 bg-white/20 rounded-full"></div>
               <h2 className="text-2xl sm:text-3xl font-bold text-white">Daily Inspiration</h2>
             </div>
             <AIFeatures
