@@ -25,7 +25,9 @@ export default function JournalPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [streak, setStreak] = useState(0);
   const { toast } = useToast();
-  const supabase = createClient();
+  
+  // Initialize Supabase client only in browser using lazy initializer
+  const [supabase] = useState(() => typeof window !== 'undefined' ? createClient() : null);
 
   useEffect(() => {
     fetchJournalHistory();
@@ -33,6 +35,8 @@ export default function JournalPage() {
 
   const fetchJournalHistory = async () => {
     try {
+      if (!supabase) return;
+      
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -108,7 +112,7 @@ export default function JournalPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim()) return;
+    if (!content.trim() || !supabase) return;
 
     setIsLoading(true);
     try {

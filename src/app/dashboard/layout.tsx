@@ -158,7 +158,7 @@ export default function DashboardLayout({
   );
 
   return (
-    <div className="flex min-h-screen bg-black text-white overflow-x-clip">
+    <div className="flex min-h-screen bg-black text-white overflow-x-hidden">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex flex-col fixed inset-y-0 w-64 border-r border-white/10 bg-black/50 backdrop-blur-md">
         <SidebarContent />
@@ -197,7 +197,7 @@ export default function DashboardLayout({
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 md:ml-64 overflow-x-clip">
+      <div className="flex-1 md:ml-64 overflow-x-hidden">
         <div className="h-full pt-14 md:pt-0">{children}</div>
       </div>
     </div>

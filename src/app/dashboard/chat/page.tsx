@@ -23,7 +23,9 @@ export default function ChatPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const supabase = createClient();
+  
+  // Initialize Supabase client only in browser using lazy initializer
+  const [supabase] = useState(() => typeof window !== 'undefined' ? createClient() : null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,6 +42,8 @@ export default function ChatPage() {
 
   const fetchChatHistory = async () => {
     try {
+      if (!supabase) return;
+      
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -68,7 +72,7 @@ export default function ChatPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (isSubmitting || !message.trim()) return;
+    if (isSubmitting || !message.trim() || !supabase) return;
 
     setIsSubmitting(true);
     setIsLoading(true);
