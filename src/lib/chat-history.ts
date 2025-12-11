@@ -13,33 +13,43 @@ export async function getChatHistory(
 
   const { data, error } = await supabase
     .from("chat_messages")
-    .select("role, content")
+    .select("content, response")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) {
-    console.error("Error fetching chat history:", error);
     return [];
   }
 
-  return data || [];
+  // Convert database format to ChatMessage format
+  const messages: ChatMessage[] = [];
+  (data || []).reverse().forEach((msg: any) => {
+    if (msg.content) {
+      messages.push({ role: "user", content: msg.content });
+    }
+    if (msg.response) {
+      messages.push({ role: "assistant", content: msg.response });
+    }
+  });
+
+  return messages;
 }
 
 export async function saveChatMessage(
   userId: string,
-  message: ChatMessage
+  userMessage: string,
+  aiResponse: string
 ): Promise<void> {
   const supabase = createClient();
 
   const { error } = await supabase.from("chat_messages").insert({
     user_id: userId,
-    role: message.role,
-    content: message.content,
+    content: userMessage,
+    response: aiResponse,
   });
 
   if (error) {
-    console.error("Error saving chat message:", error);
     throw error;
   }
 }

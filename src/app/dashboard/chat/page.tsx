@@ -11,8 +11,8 @@ import { cn } from "@/lib/utils";
 
 interface ChatMessage {
   id: string;
-  content: string;
-  response: string;
+  content: string;  // User's message
+  response: string; // AI's response
   created_at: string;
 }
 
@@ -83,67 +83,28 @@ export default function ChatPage() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: existingMessage } = await supabase
-        .from("chat_messages")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("content", message.trim())
-        .limit(1);
-
-      if (existingMessage && existingMessage.length > 0) {
-        toast({
-          title: "Duplicate Message",
-          description:
-            "You've already sent this message. Please try a different message.",
-          variant: "destructive",
-        });
-        return;
-      }
-
+      // Call the API - it will handle saving to database
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message: message.trim() }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to get response");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to get response");
       }
 
       const data = await response.json();
 
-      // Store in database
-      const { error: insertError } = await supabase
-        .from("chat_messages")
-        .insert({
-          user_id: user.id,
-          content: message.trim(),
-          response: data.response,
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        if (insertError.code === "23505") {
-          toast({
-            title: "Duplicate Message",
-            description:
-              "You've already sent this message. Please try a different message.",
-            variant: "destructive",
-          });
-        } else {
-          throw insertError;
-        }
-        return;
-      }
-
+      // Refresh chat history to show the new message
       await fetchChatHistory();
       setMessage("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error:", error);
       toast({
         title: "Error",
-        description: "Failed to send message",
+        description: error.message || "Failed to send message",
         variant: "destructive",
       });
     } finally {
