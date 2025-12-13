@@ -10,8 +10,9 @@ import {
 } from "./ui/card";
 import { Button } from "./ui/button";
 import { createClient } from "../../supabase/client";
-import { Trophy, Plus } from "lucide-react";
+import { Trophy, Plus, Activity } from "lucide-react";
 import Link from "next/link";
+import RippleLoader from "./ui/rippleLoader";
 
 interface QuestContribution {
   date: string;
@@ -409,21 +410,9 @@ export default function QuestContributionGraph({
 
   if (loading || !supabase) {
     return (
-      <Card className="bg-black/70 border-white/10 text-white">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <Trophy className="h-5 w-5 text-white" /> Quest Contribution Graph
-          </CardTitle>
-          <CardDescription className="text-white/70">
-            {!supabase ? "Initializing..." : "Loading your quest activity..."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-3">
-            <div className="h-24 bg-white/10 rounded"></div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center p-8 bg-black/70 border border-white/10 rounded-xl h-[400px]">
+        <RippleLoader icon={<Trophy />} size={200} duration={2} logoColor="white" />
+      </div>
     );
   }
 

@@ -11,7 +11,8 @@ import {
 } from "./ui/card";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
-import { TrendingUp, TrendingDown, Trophy, BookOpen } from "lucide-react";
+import { TrendingUp, TrendingDown, Trophy, BookOpen, Activity } from "lucide-react";
+import RippleLoader from "./ui/rippleLoader";
 
 interface WeeklyData {
   category: string;
@@ -159,19 +160,9 @@ export default function WeeklyProgressGraph() {
 
   if (loading || !supabase) {
     return (
-      <Card className="border border-white/20 bg-black/50 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="text-white text-lg sm:text-xl">Weekly Progress</CardTitle>
-          <CardDescription className="text-white/60 text-sm">
-            Loading your weekly activity...
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[250px] sm:h-[300px] flex items-center justify-center">
-            <div className="animate-pulse text-white/50 text-sm">Loading...</div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center p-8 bg-black/50 border border-white/20 rounded-xl h-[400px]">
+        <RippleLoader icon={<Activity />} size={200} duration={2} logoColor="white" />
+      </div>
     );
   }
 

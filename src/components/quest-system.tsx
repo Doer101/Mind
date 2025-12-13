@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trophy } from "lucide-react";
+import RippleLoader from "./ui/rippleLoader";
 
 interface Quest {
   id: string;
@@ -181,7 +182,7 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh] bg-black bg-opacity-70 text-white">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+        <RippleLoader icon={<Trophy />} size={200} duration={2} logoColor="white" />
       </div>
     );
   }
