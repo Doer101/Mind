@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Send, Lightbulb } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import RippleLoader from "@/components/ui/rippleLoader";
 
 interface IdeaEntry {
   id: string;
@@ -209,7 +210,7 @@ export default function IdeasPage() {
           <CardContent>
             {isLoadingHistory ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <RippleLoader icon={<Lightbulb />} size={150} duration={2} logoColor="white" />
               </div>
             ) : ideaHistory.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">

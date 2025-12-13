@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Send, MessageCircle, Bot, User } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import RippleLoader from "@/components/ui/rippleLoader";
 
 interface ChatMessage {
   id: string;
@@ -128,7 +129,7 @@ export default function ChatPage() {
           <div className="flex-1 overflow-y-auto space-y-4 mb-4">
             {isLoadingHistory ? (
               <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-6 w-6 animate-spin text-white" />
+                <RippleLoader icon={<MessageCircle />} size={200} duration={2} logoColor="white" />
               </div>
             ) : chatHistory.length === 0 ? (
               <div className="flex items-center justify-center h-full">

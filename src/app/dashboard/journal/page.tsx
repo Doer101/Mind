@@ -9,6 +9,7 @@ import { Loader2, Send, BookOpen, Flame, Sparkles } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { format, isToday, isYesterday, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import RippleLoader from "@/components/ui/rippleLoader";
 
 interface JournalEntry {
   id: string;
@@ -241,7 +242,7 @@ export default function JournalPage() {
             <CardContent>
               {isLoadingHistory ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                  <RippleLoader icon={<BookOpen />} size={150} duration={2} logoColor="white" />
                 </div>
               ) : journalHistory.length === 0 ? (
                 <p className="text-white/70 text-center py-8">
