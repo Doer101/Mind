@@ -50,7 +50,7 @@ export default function Hero() {
                 className="bg-white text-black hover:bg-black hover:text-white border border-white"
                 asChild
               >
-                <Link href="#pricing" className="inline-flex items-center">
+                <Link href="/pricing" className="inline-flex items-center">
                   View Premium
                 </Link>
               </Button>
