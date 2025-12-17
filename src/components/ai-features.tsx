@@ -14,7 +14,7 @@ import { Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AIFeaturesProps {
-  type: "daily-prompt" | "feedback" | "chat" | "mirror" | "idea-expand";
+  type: "daily-prompt" | "chat";
   title: string;
   description: string;
   icon?: React.ReactNode;
@@ -36,12 +36,7 @@ export default function AIFeatures({
       setLoading(true);
       setError("");
 
-      let endpoint = "/api/ai";
-      if (type === "feedback") {
-        endpoint = "/api/ai/feedback";
-      } else if (type === "mirror") {
-        endpoint = "/api/ai/mirror";
-      }
+      const endpoint = "/api/ai";
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -66,17 +61,8 @@ export default function AIFeatures({
         case "daily-prompt":
           setResponse(data.prompt);
           break;
-        case "feedback":
-          setResponse(data.feedback);
-          break;
         case "chat":
           setResponse(data.response);
-          break;
-        case "mirror":
-          setResponse(data.reflection);
-          break;
-        case "idea-expand":
-          setResponse(data.expansion);
           break;
       }
     } catch (err) {
