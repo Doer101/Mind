@@ -107,28 +107,46 @@ function stripThinkTags(s: string): string {
 
 function extractJsonArraySlice(raw: string): string | null {
   if (!raw || typeof raw !== "string") return null;
-  const completeMatch = raw.match(/(\[[\s\S]*?\])/);
-  if (completeMatch) return completeMatch[0];
 
-  const startIndex = raw.search(/\[\s*{/);
+  // Find the start of a JSON array containing an object
+  const startIndex = raw.search(/\[\s*\{/);
   if (startIndex === -1) return null;
 
-  let partial = raw.slice(startIndex);
-  let openBraces = (partial.match(/{/g) || []).length;
-  let closeBraces = (partial.match(/}/g) || []).length;
-  let openBrackets = (partial.match(/\[/g) || []).length;
-  let closeBrackets = (partial.match(/\]/g) || []).length;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
 
-  while (openBraces > closeBraces) {
-    partial += "}";
-    closeBraces++;
-  }
-  while (openBrackets > closeBrackets) {
-    partial += "]";
-    closeBrackets++;
+  for (let i = startIndex; i < raw.length; i++) {
+    const char = raw[i];
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escape = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === "[") depth++;
+      else if (char === "]") depth--;
+
+      if (depth === 0) {
+        return raw.slice(startIndex, i + 1);
+      }
+    }
   }
 
-  return partial;
+  // If we reach here, we found the start but not the end (truncated).
+  // Return what we have, though it will likely fail parsing.
+  return raw.slice(startIndex);
 }
 
 function sanitizeJsonish(s: string): string {

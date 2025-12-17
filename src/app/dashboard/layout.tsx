@@ -5,8 +5,6 @@ import { cn } from "@/lib/utils";
 import {
   Home,
   BookOpen,
-  Lightbulb,
-  MessageSquare,
   Sparkles,
   Settings,
   MessageCircle,
@@ -57,16 +55,6 @@ export default function DashboardLayout({
       href: "/dashboard/chat",
       label: "AI Chat",
       icon: MessageCircle,
-    },
-    {
-      href: "/dashboard/feedback",
-      label: "Writing Feedback",
-      icon: MessageSquare,
-    },
-    {
-      href: "/dashboard/mirror",
-      label: "Creativity Mirror",
-      icon: Lightbulb,
     },
     {
       href: "/todo-feature",
