@@ -34,6 +34,17 @@ export default async function Dashboard() {
     return redirect("/sign-in");
   }
 
+  // Onboarding Guard: Check if global progress exists
+  const { data: globalProgress } = await supabase
+    .from("user_global_progress")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!globalProgress) {
+    return redirect("/onboarding/fields");
+  }
+
   // Fetch today's journal entries
   const today = new Date().toISOString().split("T")[0];
   const { data: journalEntries, error: journalError } = await supabase
