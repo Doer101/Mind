@@ -265,19 +265,26 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
             >
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <div>
+                  <div className="flex flex-col gap-2">
                     <CardTitle className="text-white">{quest.title}</CardTitle>
                     <CardDescription className="text-white">
                       {quest.description}
                     </CardDescription>
+                    <div className="flex gap-2">
+                       <Badge
+                        className={
+                          getDifficultyColor(quest.difficulty) + " text-white"
+                        }
+                      >
+                        {quest.difficulty}
+                      </Badge>
+                      {(quest as any).quest_category === 'core' ? (
+                        <Badge className="bg-gradient-to-r from-teal-500 to-indigo-500 text-white border-none shadow-[0_0_15px_rgba(20,184,166,0.2)]">Mandatory Core Quest</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-white/40 border-white/20">Optional Side Quest</Badge>
+                      )}
+                    </div>
                   </div>
-                  <Badge
-                    className={
-                      getDifficultyColor(quest.difficulty) + " text-white"
-                    }
-                  >
-                    {quest.difficulty}
-                  </Badge>
                 </div>
               </CardHeader>
               <CardContent>

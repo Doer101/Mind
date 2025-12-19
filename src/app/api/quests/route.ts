@@ -383,7 +383,7 @@ function buildDistinctPenaltyFromMissed(expired: any): { title: string; descript
 }
 
 // === GET (fetch or create quests if missing) ===
-export async function GET() {
+export async function GET(req: Request) {
   try {
     console.log("GET /api/quests - Fetching quests");
     const supabase = await createClient();
@@ -397,13 +397,22 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch all active daily quests for the user
-    const { data: quests, error: questError } = await supabase
+    // Check for sub_module_id in query params
+    const { searchParams } = new URL(req.url);
+    const subModuleId = searchParams.get("sub_module_id");
+
+    // Fetch active daily quests for the user
+    let query = supabase
       .from("quests")
       .select("*")
       .eq("user_id", user.id)
-      .eq("status", "active")
-      .order("created_at", { ascending: false });
+      .eq("status", "active");
+
+    if (subModuleId) {
+      query = query.eq("sub_module_id", subModuleId);
+    }
+
+    const { data: quests, error: questError } = await query.order("created_at", { ascending: false });
 
     if (questError) {
       console.error("Error fetching quests:", questError);
