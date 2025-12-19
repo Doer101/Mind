@@ -6,6 +6,8 @@ import {
   PenTool,
   MessageCircle,
   Sparkles,
+  BarChart3,
+  Dna,
 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/supabase/server";
@@ -22,6 +24,8 @@ import AIFeatures from "@/components/ai-features";
 import DashboardQuestStats from "@/components/dashboard-quest-stats";
 import QuestContributionGraph from "@/components/quest-contribution-graph";
 import WeeklyProgressGraph from "@/components/weekly-progress-graph";
+import { PentagonStats } from "@/components/pentagon-stats";
+import { Progress } from "@/components/ui/progress";
 
 export default async function Dashboard() {
   const supabase = await createClient();
@@ -34,16 +38,20 @@ export default async function Dashboard() {
     return redirect("/sign-in");
   }
 
-  // Onboarding Guard: Check if global progress exists
+  // Fetch global progress (authoritative source for XP, Level, League)
   const { data: globalProgress } = await supabase
     .from("user_global_progress")
-    .select("user_id")
+    .select("global_xp, global_level, league")
     .eq("user_id", user.id)
     .single();
 
   if (!globalProgress) {
     return redirect("/onboarding/fields");
   }
+
+  const globalXP = globalProgress.global_xp || 0;
+  const globalLevel = globalProgress.global_level || 1;
+  const league = globalProgress.league || "Novice";
 
   // Fetch today's journal entries
   const today = new Date().toISOString().split("T")[0];
@@ -75,14 +83,33 @@ export default async function Dashboard() {
     .eq("id", user.id)
     .single();
 
-  // Fetch user XP
+  // Fetch user quest preferences
   const { data: userData } = await supabase
     .from("users")
-    .select("user_xp, quest_preference")
+    .select("quest_preference")
     .eq("id", user.id)
     .single();
-  const userXP = userData?.user_xp || 0;
   const questPreference = userData?.quest_preference || [];
+
+  // Fetch all field progress for Pentagon and Field Cards
+  const { data: fieldProgressData } = await supabase
+    .from("fields")
+    .select(`
+      id,
+      name,
+      user_field_progress!inner(field_level, field_xp, unlocked)
+    `)
+    .eq("user_field_progress.user_id", user.id);
+
+  const fieldProgress = (fieldProgressData || []).map(f => ({
+    id: f.id,
+    name: f.name,
+    level: (f.user_field_progress as any)[0]?.field_level || 1,
+    xp: (f.user_field_progress as any)[0]?.field_xp || 0,
+    unlocked: (f.user_field_progress as any)[0]?.unlocked || false
+  }));
+
+  const maxUnlockedLevel = Math.max(...fieldProgress.filter(f => f.unlocked).map(f => f.level), 1);
 
   // If no quest preference, show a message with a link to settings
   if (!questPreference || questPreference.length === 0) {
@@ -103,23 +130,15 @@ export default async function Dashboard() {
     );
   }
 
-  // Fetch user levels
+  // Calculate nextXP from authoritative source
   const { data: levels } = await supabase
     .from("user_levels")
     .select("level,xp_required")
     .order("level", { ascending: true });
-  let level = 1;
-  let nextXP = 100;
-  if (levels && levels.length > 0) {
-    for (let i = 0; i < levels.length; i++) {
-      if (userXP >= levels[i].xp_required) {
-        level = levels[i].level;
-        nextXP = levels[i + 1]?.xp_required || levels[i].xp_required;
-      } else {
-        break;
-      }
-    }
-  }
+  
+  const nextLevelData = (levels || []).find(l => l.level === globalLevel + 1);
+  const currentLevelData = (levels || []).find(l => l.level === globalLevel);
+  const nextXP = nextLevelData?.xp_required || currentLevelData?.xp_required || 100;
 
   return (
     <div className="flex-1 min-h-screen bg-black text-white overflow-x-hidden">
@@ -169,10 +188,17 @@ export default async function Dashboard() {
                   <p className="text-sm text-white/70 font-medium mt-1">
                     {totalEntries} Journal Entries
                   </p>
-                  <div className="mt-2.5 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm inline-block">
-                    <p className="text-sm text-white font-semibold">
-                      Level {level} • {userXP}/{nextXP} XP
-                    </p>
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    <div className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm inline-block">
+                      <p className="text-sm text-white font-semibold">
+                        Level {globalLevel} • {globalXP}/{nextXP} XP
+                      </p>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-full bg-gradient-to-r from-teal-500/20 to-indigo-500/20 border border-teal-500/30 backdrop-blur-sm inline-block">
+                      <p className="text-sm text-teal-400 font-bold uppercase tracking-wider">
+                        {league} League
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -252,6 +278,72 @@ export default async function Dashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Performance & Mastery Section */}
+        <div className="grid gap-8 lg:grid-cols-2">
+          {/* Overall Performance (Pentagon) */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-white/10">
+                <Dna className="h-5 w-5 text-teal-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Overall Performance</h2>
+            </div>
+            <PentagonStats data={fieldProgress} maxLevel={maxUnlockedLevel} />
+          </div>
+
+          {/* Field Mastery Cards */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-white/10">
+                <BarChart3 className="h-5 w-5 text-indigo-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Field Mastery</h2>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+              {fieldProgress.map((field) => {
+                // Find next XP for this field level
+                const currentFieldLevel = field.level;
+                const fieldLevels = levels || [];
+                let fieldNextXP = 100;
+                for (let i = 0; i < fieldLevels.length; i++) {
+                  if (fieldLevels[i].level === currentFieldLevel + 1) {
+                    fieldNextXP = fieldLevels[i].xp_required;
+                    break;
+                  }
+                }
+
+                return (
+                  <Card 
+                    key={field.id} 
+                    className={`bg-white/5 border-white/10 p-4 transition-all hover:bg-white/10 ${!field.unlocked ? 'opacity-50' : ''}`}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        {!field.unlocked && <InfoIcon className="h-4 w-4 text-white/40" />}
+                        <h3 className="font-bold text-white">{field.name}</h3>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-black text-teal-400 uppercase tracking-widest">
+                          {field.unlocked ? `LVL ${field.level}` : 'LOCKED'}
+                        </span>
+                      </div>
+                    </div>
+                    {field.unlocked && (
+                      <div className="space-y-2">
+                        <Progress value={(field.xp / fieldNextXP) * 100} className="h-1.5 bg-white/10" />
+                        <div className="flex justify-between text-[10px] text-white/40 font-bold uppercase tracking-widest">
+                          <span>{field.xp} XP</span>
+                          <span>{fieldNextXP} XP NEXT</span>
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Weekly Progress Section */}

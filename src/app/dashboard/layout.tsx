@@ -12,6 +12,7 @@ import {
   X,
   Trophy,
   ListTodo,
+  GraduationCap,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,11 @@ export default function DashboardLayout({
       href: "/dashboard",
       label: "Dashboard",
       icon: Home,
+    },
+    {
+      href: "/learn",
+      label: "Learning Path",
+      icon: GraduationCap,
     },
     {
       href: "/dashboard/journal",

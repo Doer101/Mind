@@ -20,11 +20,13 @@ interface QuestContribution {
   medium: number;
   hard: number;
   total: number;
+  hasCore: boolean;
 }
 
 interface QuestData {
   difficulty: string;
   xp_reward: number;
+  quest_category: string;
 }
 
 interface CompletedQuest {
@@ -126,7 +128,8 @@ export default function QuestContributionGraph({
           completed_at,
           quests!inner(
             difficulty,
-            xp_reward
+            xp_reward,
+            quest_category
           )
         `
         )
@@ -160,10 +163,10 @@ export default function QuestContributionGraph({
           const questIds = progressData.map((p) => p.quest_id);
           const { data: questsData } = (await supabase
             .from("quests")
-            .select("id, difficulty, xp_reward")
+            .select("id, difficulty, xp_reward, quest_category")
             .in("id", questIds)) as {
             data:
-              | { id: string; difficulty: string; xp_reward: number }[]
+              | { id: string; difficulty: string; xp_reward: number; quest_category: string }[]
               | null;
           };
 
@@ -176,6 +179,7 @@ export default function QuestContributionGraph({
                   quests: {
                     difficulty: quest.difficulty,
                     xp_reward: quest.xp_reward,
+                    quest_category: quest.quest_category
                   },
                 } as CompletedQuest;
               }
@@ -196,6 +200,7 @@ export default function QuestContributionGraph({
           medium: 0,
           hard: 0,
           total: 0,
+          hasCore: false,
         });
       }
       // Fill contribution map with completed quests
@@ -215,6 +220,9 @@ export default function QuestContributionGraph({
 
             existing[difficulty]++;
             existing.total++;
+            if (questProgress.quests.quest_category === 'core') {
+              existing.hasCore = true;
+            }
             contributionMap.set(dateStr, existing);
           }
         }
@@ -322,33 +330,45 @@ export default function QuestContributionGraph({
     // Color intensity based on total quests completed
     const intensity = Math.min(total, 5); // Cap at 5 for color intensity
 
+    // If day has Core quest(s), use a Strong primary color (Teal/Indigo brand feel)
+    if (contribution.hasCore) {
+      return [
+        "bg-teal-200",
+        "bg-teal-300",
+        "bg-teal-400",
+        "bg-teal-500",
+        "bg-teal-600",
+      ][intensity - 1];
+    }
+
+    // Side quests: muted versions of original colors
     switch (primaryDifficulty) {
       case "easy":
         return [
-          "bg-green-200",
-          "bg-green-300",
-          "bg-green-400",
-          "bg-green-500",
-          "bg-green-600",
+          "bg-green-100/60",
+          "bg-green-200/60",
+          "bg-green-300/60",
+          "bg-green-400/60",
+          "bg-green-500/60",
         ][intensity - 1];
       case "medium":
         return [
-          "bg-blue-200",
-          "bg-blue-300",
-          "bg-blue-400",
-          "bg-blue-500",
-          "bg-blue-600",
+          "bg-blue-100/60",
+          "bg-blue-200/60",
+          "bg-blue-300/60",
+          "bg-blue-400/60",
+          "bg-blue-500/60",
         ][intensity - 1];
       case "hard":
         return [
-          "bg-purple-200",
-          "bg-purple-300",
-          "bg-purple-400",
-          "bg-purple-500",
-          "bg-purple-600",
+          "bg-purple-100/60",
+          "bg-purple-200/60",
+          "bg-purple-300/60",
+          "bg-purple-400/60",
+          "bg-purple-500/60",
         ][intensity - 1];
       default:
-        return "bg-green-400";
+        return "bg-green-100/60";
     }
   };
 
@@ -617,16 +637,12 @@ export default function QuestContributionGraph({
           {/* Difficulty Legend */}
           <div className="flex flex-wrap justify-center sm:justify-end gap-3 mt-3 text-xs text-white/70">
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
-              <span>Easy</span>
+              <div className="w-3 h-3 bg-teal-400 rounded-sm"></div>
+              <span>Core Paths</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 bg-blue-400 rounded-sm"></div>
-              <span>Medium</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 bg-purple-400 rounded-sm"></div>
-              <span>Hard</span>
+              <div className="w-3 h-3 bg-green-300/60 rounded-sm"></div>
+              <span>Side Quests</span>
             </div>
           </div>
         </div>
