@@ -66,6 +66,25 @@ export default function ProfileForm({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="name" className="text-white">Username</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-white/40 font-mono text-sm">@</span>
+              <Input
+                id="name"
+                name="name"
+                placeholder="username"
+                defaultValue={profile?.name || ""}
+                className="pl-8 bg-black/50 border-white/20 text-white placeholder-white/30 focus:border-white/50"
+                pattern="^[a-z0-9_]+$"
+                title="Username can only contain lowercase letters, numbers, and underscores."
+              />
+            </div>
+            <p className="text-[0.8rem] text-white/40">
+              Your unique public handle. Lowercase, numbers, and underscores only.
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="full_name" className="text-white">Full Name</Label>
             <div className="relative">
               <User className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />

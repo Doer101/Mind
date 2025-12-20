@@ -26,7 +26,7 @@ export default async function SettingsPage() {
   // Fetch current profile and preferences
   const { data: userData } = await supabase
     .from("users")
-    .select("full_name, bio, website, quest_preference, notifications_enabled, email")
+    .select("name, full_name, bio, website, quest_preference, notifications_enabled, email")
     .eq("id", user.id)
     .single();
 
@@ -70,6 +70,7 @@ export default async function SettingsPage() {
             <ProfileForm 
               user={user} 
               profile={{
+                name: userData?.name,
                 full_name: userData?.full_name,
                 bio: userData?.bio,
                 website: userData?.website

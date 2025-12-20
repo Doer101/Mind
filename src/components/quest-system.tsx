@@ -42,9 +42,10 @@ interface UserProgress {
 interface QuestSystemProps {
   userId: string;
   apiUrl: string;
+  allowGeneration?: boolean;
 }
 
-export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
+export function QuestSystem({ userId, apiUrl, allowGeneration = true }: QuestSystemProps) {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [penaltyQuests, setPenaltyQuests] = useState<Quest[]>([]);
   const [userProgress, setUserProgress] = useState<
@@ -222,15 +223,17 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">No Active Quests Yet!</h2>
           <p className="text-white mb-4">
-            No Active quest quests. Click below to get your daily quests!
+            No Active quest quests. {allowGeneration && "Click below to get your daily quests!"}
           </p>
-          <Button
-            onClick={generateQuests}
-            variant="default"
-            className="border border-white text-black bg-white hover:bg-black hover:text-white"
-          >
-            Generate Daily Quests
-          </Button>
+          {allowGeneration && (
+            <Button
+              onClick={generateQuests}
+              variant="default"
+              className="border border-white text-black bg-white hover:bg-black hover:text-white"
+            >
+              Generate Daily Quests
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -240,13 +243,15 @@ export function QuestSystem({ userId, apiUrl }: QuestSystemProps) {
     <div className="space-y-8 bg-black bg-opacity-70 text-white min-h-screen">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Daily Quests</h1>
-        <Button
-          onClick={generateQuests}
-          variant="outline"
-          className="border border-white bg-black/70 text-white hover:bg-white hover:text-black"
-        >
-          Get New
-        </Button>
+        {allowGeneration && (
+          <Button
+            onClick={generateQuests}
+            variant="outline"
+            className="border border-white bg-black/70 text-white hover:bg-white hover:text-black"
+          >
+            Get New
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

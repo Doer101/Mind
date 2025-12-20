@@ -1,15 +1,13 @@
 import DashboardCalendarTodo from "./dashboard-calendar-todo";
 import {
-  InfoIcon,
   UserCircle,
   Brain,
   PenTool,
   MessageCircle,
   Sparkles,
-  BarChart3,
-  Dna,
 } from "lucide-react";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/supabase/server";
 import {
   Card,
@@ -24,8 +22,8 @@ import AIFeatures from "@/components/ai-features";
 import DashboardQuestStats from "@/components/dashboard-quest-stats";
 import QuestContributionGraph from "@/components/quest-contribution-graph";
 import WeeklyProgressGraph from "@/components/weekly-progress-graph";
-import { PentagonStats } from "@/components/pentagon-stats";
-import { Progress } from "@/components/ui/progress";
+import { Discovery } from "./Discovery";
+import { Users } from "lucide-react";
 
 export default async function Dashboard() {
   const supabase = await createClient();
@@ -178,27 +176,24 @@ export default async function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/20 group-hover:ring-white/30 transition-all">
-                  <UserCircle className="h-8 w-8 text-white" />
-                </div>
+                <Link href="/profile" className="flex-shrink-0">
+                  <div className="h-16 w-16 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/20 group-hover:ring-white/30 transition-all cursor-pointer">
+                    <UserCircle className="h-8 w-8 text-white" />
+                  </div>
+                </Link>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold text-lg truncate">
-                    {profile?.full_name || user.email}
-                  </p>
+                  <Link href="/profile" className="hover:underline decoration-white/30 underline-offset-4">
+                    <p className="text-white font-semibold text-lg truncate">
+                      {profile?.full_name || user.email}
+                    </p>
+                  </Link>
                   <p className="text-sm text-white/70 font-medium mt-1">
                     {totalEntries} Journal Entries
                   </p>
-                  <div className="mt-2.5 flex flex-wrap gap-2">
-                    <div className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm inline-block">
-                      <p className="text-sm text-white font-semibold">
-                        Level {globalLevel} • {globalXP}/{nextXP} XP
-                      </p>
-                    </div>
-                    <div className="px-3 py-1.5 rounded-full bg-gradient-to-r from-teal-500/20 to-indigo-500/20 border border-teal-500/30 backdrop-blur-sm inline-block">
-                      <p className="text-sm text-teal-400 font-bold uppercase tracking-wider">
-                        {league} League
-                      </p>
-                    </div>
+                  <div className="mt-3">
+                    <Button variant="secondary" size="sm" asChild className="w-full text-xs font-bold uppercase tracking-wider bg-white/10 hover:bg-white/20 text-white border border-white/10">
+                      <Link href="/profile">View My Profile</Link>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -210,7 +205,7 @@ export default async function Dashboard() {
             <CardHeader className="space-y-1">
               <CardTitle className="flex items-center gap-3 text-white text-xl">
                 <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm group-hover:bg-white/15 transition-colors">
-                  <Brain className="h-5 w-5 text-white" />
+                <Brain className="h-5 w-5 text-white" />
                 </div>
                 Today's Progress
               </CardTitle>
@@ -280,71 +275,23 @@ export default async function Dashboard() {
           </Card>
         </div>
 
-        {/* Performance & Mastery Section */}
-        <div className="grid gap-8 lg:grid-cols-2">
-          {/* Overall Performance (Pentagon) */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white/10">
-                <Dna className="h-5 w-5 text-teal-400" />
-              </div>
-              <h2 className="text-2xl font-bold text-white">Overall Performance</h2>
-            </div>
-            <PentagonStats data={fieldProgress} maxLevel={maxUnlockedLevel} />
+        {/* Discovery Section */}
+        <div className="grid gap-8 lg:grid-cols-3">
+          <div className="lg:col-span-1">
+            <Discovery />
           </div>
-
-          {/* Field Mastery Cards */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white/10">
-                <BarChart3 className="h-5 w-5 text-indigo-400" />
-              </div>
-              <h2 className="text-2xl font-bold text-white">Field Mastery</h2>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              {fieldProgress.map((field) => {
-                // Find next XP for this field level
-                const currentFieldLevel = field.level;
-                const fieldLevels = levels || [];
-                let fieldNextXP = 100;
-                for (let i = 0; i < fieldLevels.length; i++) {
-                  if (fieldLevels[i].level === currentFieldLevel + 1) {
-                    fieldNextXP = fieldLevels[i].xp_required;
-                    break;
-                  }
-                }
-
-                return (
-                  <Card 
-                    key={field.id} 
-                    className={`bg-white/5 border-white/10 p-4 transition-all hover:bg-white/10 ${!field.unlocked ? 'opacity-50' : ''}`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        {!field.unlocked && <InfoIcon className="h-4 w-4 text-white/40" />}
-                        <h3 className="font-bold text-white">{field.name}</h3>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs font-black text-teal-400 uppercase tracking-widest">
-                          {field.unlocked ? `LVL ${field.level}` : 'LOCKED'}
-                        </span>
-                      </div>
-                    </div>
-                    {field.unlocked && (
-                      <div className="space-y-2">
-                        <Progress value={(field.xp / fieldNextXP) * 100} className="h-1.5 bg-white/10" />
-                        <div className="flex justify-between text-[10px] text-white/40 font-bold uppercase tracking-widest">
-                          <span>{field.xp} XP</span>
-                          <span>{fieldNextXP} XP NEXT</span>
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                );
-              })}
-            </div>
+          <div className="lg:col-span-2 space-y-4">
+             {/* Empty or can put something else here later */}
+             <div className="p-8 rounded-3xl border border-dashed border-white/10 flex flex-col items-center justify-center text-center space-y-4 h-full">
+                <Users className="h-12 w-12 text-white/20" />
+                <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-white/60 uppercase tracking-tighter italic">Connect with Masters</h3>
+                  <p className="text-sm text-white/40 max-w-xs">Follow other users to see their progress and stay motivated in your mindfulness journey.</p>
+                </div>
+             </div>
           </div>
         </div>
+
 
         {/* Weekly Progress Section */}
         <div className="space-y-4">

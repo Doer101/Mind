@@ -8,7 +8,7 @@ export default async function LearnPage() {
   const fields = await getLearningFields();
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
+    <div className="min-h-screen bg-black text-white px-4 sm:px-6 lg:px-8 py-8">
       <div className="max-w-7xl mx-auto space-y-12">
         <div className="space-y-4 text-center sm:text-left">
           <h1 className="text-4xl font-bold tracking-tight text-white">Learning Path</h1>
@@ -19,7 +19,7 @@ export default async function LearnPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {fields.map((field: any) => {
-            const isUnlocked = field.progress?.unlocked;
+            const isUnlocked = field.userGlobalLevel >= field.unlock_global_level;
             const levelRequirement = field.unlock_global_level;
             
             return (

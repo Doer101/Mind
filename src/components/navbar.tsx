@@ -8,6 +8,7 @@ import UserProfile from "./user-profile";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { Trophy } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -54,6 +55,19 @@ export default function Navbar() {
                   asChild
                 >
                   <Link href="/dashboard">Dashboard</Link>
+                </Button>
+              )}
+              {pathname !== "/todo-feature" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white hover:text-black hidden sm:flex items-center gap-2"
+                  asChild
+                >
+                  <Link href="/league">
+                    <Trophy className="h-4 w-4" />
+                    League
+                  </Link>
                 </Button>
               )}
               {pathname !== "/todo-feature" && <UserProfile />}
