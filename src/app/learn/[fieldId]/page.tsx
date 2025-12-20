@@ -22,8 +22,8 @@ export default async function FieldPathPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-3xl mx-auto space-y-12">
+    <div className="min-h-screen bg-black text-white px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto space-y-12">
         <div className="space-y-6">
           <div className="text-center space-y-4">
             <Badge variant="outline" className="text-white border-white/20 uppercase tracking-widest px-4 py-1 text-[10px] bg-white/5">

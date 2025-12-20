@@ -21,7 +21,7 @@ export async function getLearningFields() {
     .from("fields")
     .select(`
       *,
-      user_field_progress!inner(unlocked, field_level, field_xp)
+      user_field_progress(unlocked, field_level, field_xp)
     `)
     .eq("user_field_progress.user_id", user.id)
     .order("unlock_global_level", { ascending: true });

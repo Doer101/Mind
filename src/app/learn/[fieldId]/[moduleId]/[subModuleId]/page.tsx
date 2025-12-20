@@ -36,8 +36,8 @@ export default async function SubModulePage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-5xl mx-auto space-y-12">
+    <div className="min-h-screen bg-black text-white px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto space-y-12">
         {/* Navigation Breadcrumbs - Simple Custom Implementation */}
         <nav className="flex items-center gap-2 text-sm text-white/40">
           <Link href="/learn" className="hover:text-white transition-colors">Path</Link>
@@ -78,7 +78,11 @@ export default async function SubModulePage({ params }: PageProps) {
               {/* I'll use the QuestSystem component props if they allow custom fetching or just list them here. */}
               <div className="space-y-4">
                 {quests.length > 0 ? (
-                  <QuestSystem userId={user.id} apiUrl={`/api/quests?sub_module_id=${subModuleId}`} />
+                  <QuestSystem 
+                    userId={user.id} 
+                    apiUrl={`/api/learn/quests?sub_module_id=${subModuleId}`} 
+                    allowGeneration={false}
+                  />
                 ) : (
                   <Card className="bg-white/5 border-dashed border-white/10 p-12 text-center space-y-6">
                     <Trophy className="h-12 w-12 text-white/20 mx-auto" />

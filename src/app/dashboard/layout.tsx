@@ -67,6 +67,11 @@ export default function DashboardLayout({
       label: "To-Do List",
       icon: ListTodo,
     },
+    {
+      href: "/league",
+      label: "League",
+      icon: Trophy,
+    },
   ];
 
   const SidebarContent = () => (
