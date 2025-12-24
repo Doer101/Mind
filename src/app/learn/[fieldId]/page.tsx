@@ -63,30 +63,39 @@ export default async function FieldPathPage({ params }: PageProps) {
           <div className="absolute left-[27px] top-10 bottom-10 w-0.5 bg-gradient-to-b from-teal-500/50 via-indigo-500/50 to-transparent shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
 
           {path.modules.map((module: any, mIdx: number) => {
-            const isModuleLocked = path.currentLevel < (module.unlock_field_level || 0);
+            // Use the unlocked status from the backend
+            const isModuleLocked = !module.isUnlocked;
+            const isModuleCompleted = module.isModuleCompleted;
             
             return (
               <div key={module.id} className={`relative z-10 space-y-8 transition-opacity duration-500 ${isModuleLocked ? "opacity-50 grayscale" : "opacity-100"}`}>
                 <div className="flex items-center gap-6">
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl shadow-[0_0_30px_rgba(20,184,166,0.3)] ${
-                    isModuleLocked 
-                      ? "bg-white/10 text-white/20 shadow-none border border-white/5" 
-                      : "bg-gradient-to-br from-teal-500 to-indigo-500 text-white"
+                    isModuleCompleted
+                      ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                      : isModuleLocked 
+                        ? "bg-white/10 text-white/20 shadow-none border border-white/5" 
+                        : "bg-gradient-to-br from-teal-500 to-indigo-500 text-white"
                   }`}>
-                    {isModuleLocked ? <Lock className="h-6 w-6" /> : mIdx + 1}
+                    {isModuleCompleted ? <CheckCircle2 className="h-6 w-6" /> : isModuleLocked ? <Lock className="h-6 w-6" /> : mIdx + 1}
                   </div>
                   <div className="space-y-1 flex-1">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <h2 className="text-2xl font-bold tracking-tight uppercase text-white">
+                        <h2 className={`text-2xl font-bold tracking-tight uppercase ${isModuleCompleted ? "text-green-400" : "text-white"}`}>
                           {module.skill || module.title}
                         </h2>
-                        {isModuleLocked && (
-                          <Badge variant="outline" className="border-red-500/30 text-red-400 bg-red-500/10 text-[10px] uppercase tracking-widest font-bold">
-                            Locked • LVL {module.unlock_field_level}
+                        {isModuleCompleted && (
+                          <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] uppercase tracking-widest font-bold">
+                            Module Completed
                           </Badge>
                         )}
-                        {!isModuleLocked && module.difficulty && (
+                        {isModuleLocked && (
+                          <Badge variant="outline" className="border-red-500/30 text-red-400 bg-red-500/10 text-[10px] uppercase tracking-widest font-bold">
+                            Locked • Complete Previous Module
+                          </Badge>
+                        )}
+                        {!isModuleLocked && !isModuleCompleted && module.difficulty && (
                           <Badge variant="outline" className={`border-white/10 text-[10px] uppercase tracking-widest font-bold ${
                             module.difficulty >= 8 ? "text-red-400 bg-red-500/10" :
                             module.difficulty >= 5 ? "text-yellow-400 bg-yellow-500/10" :

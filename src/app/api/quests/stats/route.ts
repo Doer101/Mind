@@ -36,7 +36,7 @@ export async function GET() {
   }
   const dailyTotal = 9; // Always show max daily quests
 
-  // Fetch all completed quests for the user
+  // Fetch all completed quests for the user (Side Quests Only for Stats)
   const { data: allCompleted } = await supabase
     .from("user_quest_progress")
     .select("id")

@@ -79,7 +79,8 @@ export default function WeeklyProgressGraph() {
       const lastWeek = getWeekBounds(1);
 
       // Fetch quest data for this week
-      const { count: thisWeekQuests } = await supabase
+      // Fetch quest data for this week
+      const { count: thisWeekSideQuests } = await supabase
         .from("user_quest_progress")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
@@ -87,14 +88,34 @@ export default function WeeklyProgressGraph() {
         .gte("completed_at", thisWeek.start)
         .lte("completed_at", thisWeek.end);
 
+      const { count: thisWeekCoreQuests } = await supabase
+        .from("user_module_quest_progress")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("completed", true)
+        .gte("completed_at", thisWeek.start)
+        .lte("completed_at", thisWeek.end);
+
+      const thisWeekQuests = (thisWeekSideQuests || 0) + (thisWeekCoreQuests || 0);
+
       // Fetch quest data for last week
-      const { count: lastWeekQuests } = await supabase
+      const { count: lastWeekSideQuests } = await supabase
         .from("user_quest_progress")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("completed", true)
         .gte("completed_at", lastWeek.start)
         .lte("completed_at", lastWeek.end);
+
+      const { count: lastWeekCoreQuests } = await supabase
+        .from("user_module_quest_progress")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("completed", true)
+        .gte("completed_at", lastWeek.start)
+        .lte("completed_at", lastWeek.end);
+
+      const lastWeekQuests = (lastWeekSideQuests || 0) + (lastWeekCoreQuests || 0);
 
       // Fetch journal data for this week
       const { count: thisWeekJournals } = await supabase
