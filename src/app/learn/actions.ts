@@ -82,16 +82,24 @@ export async function getModuleSubModules(moduleId: string, userId: string) {
 export async function getSubModuleQuests(subModuleId: string) {
   const supabase = await createClient();
   const { data: quests, error } = await supabase
-    .from("quests")
+    .from("module_quest_templates")
     .select("*")
     .eq("sub_module_id", subModuleId)
-    .eq("quest_category", "core");
+    .order("created_at", { ascending: true });
 
   if (error) {
-    console.error("Error fetching sub-module quests:", error);
+    console.error("Error fetching sub-module quests from templates:", error);
     return [];
   }
-  return quests;
+  
+  // Transform to match Quest interface if needed (add 'status' placeholder)
+  // The UI merges user progress later, so 'status' here is just default.
+  return quests.map(q => ({
+    ...q,
+    id: q.id, // This is the template_id now
+    status: 'active',
+    quest_category: 'core'
+  }));
 }
 
 export async function getFieldLearningPath(fieldId: string) {
@@ -141,20 +149,24 @@ export async function getFieldLearningPath(fieldId: string) {
     return null;
   }
 
-  // 3. Fetch user progress for all mandatory core quests in this field
-  const { data: qProgress } = await supabase
-    .from("user_quest_progress")
-    .select("completed, quest_id, quests!inner(sub_module_id, is_mandatory, quest_category)")
-    .eq("user_id", user.id)
-    .eq("quests.quest_category", "core")
-    .eq("quests.is_mandatory", true);
+  // 3. Fetch all user progress for core quests from user_module_quest_progress
+  const { data: rawUserProgress } = await supabase
+    .from("user_module_quest_progress")
+    .select("module_quest_template_id, completed")
+    .eq("user_id", user.id);
+
+  // Convert progress to a Set of completed quest template IDs
+  const completedQuestIds = new Set(
+    (rawUserProgress || [])
+      .filter(p => p.completed)
+      .map(p => p.module_quest_template_id)
+  );
 
   // Group by sub_module_id to see which sub-modules have all mandatory quests completed
   // We also need the counts of mandatory quests per sub-module to compare
   const { data: mandatoryCounts } = await supabase
-    .from("quests")
+    .from("module_quest_templates")
     .select("sub_module_id, id")
-    .eq("quest_category", "core")
     .eq("is_mandatory", true);
 
   const subModuleMandatoryTotal = (mandatoryCounts || []).reduce((acc: any, q) => {
@@ -164,9 +176,10 @@ export async function getFieldLearningPath(fieldId: string) {
     return acc;
   }, {});
 
-  const subModuleCompletedCount = (qProgress || []).reduce((acc: any, p) => {
-    if (p.completed && (p.quests as any).sub_module_id) {
-       acc[(p.quests as any).sub_module_id] = (acc[(p.quests as any).sub_module_id] || 0) + 1;
+  // Calculate completed count by intersecting mandatory templates with user progress
+  const subModuleCompletedCount = (mandatoryCounts || []).reduce((acc: any, q) => {
+    if (q.sub_module_id && completedQuestIds.has(q.id)) {
+       acc[q.sub_module_id] = (acc[q.sub_module_id] || 0) + 1;
     }
     return acc;
   }, {});
@@ -180,10 +193,9 @@ export async function getFieldLearningPath(fieldId: string) {
 
   // Calculate total vs completed for each sub_module
   const { data: allCoreQuests } = await supabase
-    .from("quests")
+    .from("module_quest_templates")
     .select("id, sub_module_id")
-    .eq("quest_category", "core")
-    .eq("field_id", fieldId);
+    .in("sub_module_id", modules.flatMap(m => m.sub_modules.map((sm: any) => sm.id)));
 
   const subModuleCoreTotal = (allCoreQuests || []).reduce((acc: any, q) => {
     if (q.sub_module_id) {
@@ -193,18 +205,15 @@ export async function getFieldLearningPath(fieldId: string) {
   }, {});
 
   // 4. Compute lock status linearly
-  let previousCompleted = true; // First sub-module in the first module is unlocked
-  
   const processedModules = modules.map(module => {
     const processedSubModules = (module.sub_modules || [])
       .sort((a: any, b: any) => a.order_index - b.order_index)
       .map((sm: any) => {
         const isCompleted = completedIds.has(sm.id);
-        const levelMet = currentLevel >= (sm.unlock_field_level || 0);
-        // A sub-module is unlocked if everything before it is completed AND user level is high enough
-        const isUnlocked = previousCompleted && levelMet;
         
-        previousCompleted = isCompleted; // The next sub-module depends on this one
+        // Strict unlock rule: Unlocked ONLY if user level >= unlock_field_level
+        // We do NOT require previous sub-modules to be completed.
+        const isUnlocked = currentLevel >= (sm.unlock_field_level || 0);
         
         return {
           ...sm,
@@ -290,46 +299,17 @@ export async function startSubModule(subModuleId: string) {
   const { data: templates, error: tError } = await supabase
     .from("module_quest_templates")
     .select("*")
-    .eq("module_id", moduleId);
+    .eq("sub_module_id", subModuleId);
 
   if (tError || !templates || templates.length === 0) {
-    console.error("No templates found for module:", moduleId);
-    return { success: false, error: "No quest templates found for this module" };
+    console.error("No templates found for sub-module:", subModuleId);
+    return { success: false, error: "No quest templates found for this sub-module" };
   }
 
-  // 4. Instantiate quests from templates
-  const deadline = new Date();
-  deadline.setDate(deadline.getDate() + 7); // 7-day deadline for core quests
-
-  const questsToInsert = templates
-    .filter(t => t.title && t.description) // Ensure no null titles or descriptions
-    .map(template => ({
-      user_id: user.id,
-      title: template.title,
-      description: template.description,
-      xp_reward: template.xp_reward || 10,
-      difficulty: template.difficulty || 'medium',
-      type: template.type || 'challenge',
-      quest_category: 'core',
-      is_mandatory: true,
-      field_id: fieldId,
-      module_id: moduleId,
-      sub_module_id: subModuleId,
-      status: 'active',
-      deadline: deadline.toISOString()
-    }));
-
-  if (questsToInsert.length === 0) {
-    console.error("No valid templates (missing title/description) for module:", moduleId);
-    return { success: false, error: "Found templates but they were invalid (missing titles)" };
-  }
-
-  const { error: iError } = await supabase.from("quests").insert(questsToInsert);
-
-  if (iError) {
-    console.error("Error inserting core quests into database:", iError);
-    return { success: false, error: `Database Error: ${iError.message}` };
-  }
-
+  // 4. Instantiate quests from templates (DEPRECATED: Now using global templates)
+  // We no longer duplicate templates into the quests table.
+  // This function now merely serves as a check, but we return success immediately.
+  // Future: Could be used to mark "started_at" in a tracking table if needed.
+  
   return { success: true };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -43,9 +44,10 @@ interface QuestSystemProps {
   userId: string;
   apiUrl: string;
   allowGeneration?: boolean;
+  variant?: "default" | "lesson";
 }
 
-export function QuestSystem({ userId, apiUrl, allowGeneration = true }: QuestSystemProps) {
+export function QuestSystem({ userId, apiUrl, allowGeneration = true, variant = "default" }: QuestSystemProps) {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [penaltyQuests, setPenaltyQuests] = useState<Quest[]>([]);
   const [userProgress, setUserProgress] = useState<
@@ -57,18 +59,20 @@ export function QuestSystem({ userId, apiUrl, allowGeneration = true }: QuestSys
   const [limitReached, setLimitReached] = useState(false);
   const { toast } = useToast();
   const supabase = createClientComponentClient();
+  const router = useRouter();
 
   useEffect(() => {
+    console.log("[QuestSystem] Fetching quests from:", apiUrl);
     fetchQuests();
     fetchUserProgress();
-  }, []);
+  }, [apiUrl, userId]);
 
   const fetchQuests = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl, { cache: 'no-store' });
       if (!response.ok) {
         throw new Error("Failed to fetch quests");
       }
@@ -120,7 +124,7 @@ export function QuestSystem({ userId, apiUrl, allowGeneration = true }: QuestSys
 
   const fetchUserProgress = async () => {
     try {
-      const response = await fetch("/api/quests/progress");
+      const response = await fetch("/api/quests/progress", { cache: 'no-store' });
       if (!response.ok) {
         throw new Error("Failed to fetch user progress");
       }
@@ -157,6 +161,7 @@ export function QuestSystem({ userId, apiUrl, allowGeneration = true }: QuestSys
         throw new Error(errorData.error || "Failed to update quest progress");
       }
       await fetchUserProgress();
+      router.refresh();
     } catch (err) {
       console.error("Error updating quest progress:", err);
       toast({
@@ -254,10 +259,65 @@ export function QuestSystem({ userId, apiUrl, allowGeneration = true }: QuestSys
         )}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {quests.map((quest) => {
+      <div className={variant === "lesson" ? "space-y-4" : "grid gap-6 md:grid-cols-2 lg:grid-cols-3"}>
+        {quests.map((quest, index) => {
           const progress = userProgress[quest.id]?.progress || 0;
           const isCompleted = userProgress[quest.id]?.completed || false;
+
+          if (variant === "lesson") {
+             return (
+               <Card 
+                 key={quest.id} 
+                 className={`border-l-4 transition-all ${
+                   isCompleted 
+                     ? "border-l-green-500 bg-zinc-900/50 border-y-white/5 border-r-white/5 opacity-70" 
+                     : "border-l-teal-500 bg-zinc-900 border-white/10"
+                 }`}
+               >
+                 <CardContent className="p-6 flex gap-6 items-start">
+                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${
+                      isCompleted ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-teal-500/20 text-teal-400 border-teal-500/30"
+                    }`}>
+                      {index + 1}
+                    </div>
+                    <div className="flex-1 space-y-3">
+                       <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <h3 className={`text-xl font-bold ${isCompleted ? "text-white/60 line-through" : "text-white"}`}>
+                              {quest.title}
+                            </h3>
+                            <p className="text-[10px] uppercase tracking-widest text-teal-500/60 font-bold flex items-center gap-1">
+                              Reward: <span className="text-teal-400">{quest.xp_reward} XP</span>
+                            </p>
+                          </div>
+                          {isCompleted && <Badge className="bg-green-500/20 text-green-400 border-none">Completed</Badge>}
+                       </div>
+                       <p className="text-white/80 leading-relaxed text-base">
+                         {quest.description}
+                       </p>
+                    </div>
+                    <div className="flex-shrink-0 self-center">
+                      {!isCompleted ? (
+                        <Button
+                          onClick={() => updateQuestProgress(quest.id, 100)}
+                          className="bg-white text-black hover:bg-white/90 font-bold"
+                        >
+                          Complete
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          disabled
+                          className="text-green-400 font-bold opacity-100"
+                        >
+                          Done
+                        </Button>
+                      )}
+                    </div>
+                 </CardContent>
+               </Card>
+             );
+          }
 
           return (
             <Card
