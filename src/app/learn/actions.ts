@@ -162,41 +162,13 @@ export async function getFieldLearningPath(fieldId: string) {
       .map(p => p.module_quest_template_id)
   );
 
-  // Group by sub_module_id to see which sub-modules have all mandatory quests completed
-  // We also need the counts of mandatory quests per sub-module to compare
-  const { data: mandatoryCounts } = await supabase
-    .from("module_quest_templates")
-    .select("sub_module_id, id")
-    .eq("is_mandatory", true);
-
-  const subModuleMandatoryTotal = (mandatoryCounts || []).reduce((acc: any, q) => {
-    if (q.sub_module_id) {
-       acc[q.sub_module_id] = (acc[q.sub_module_id] || 0) + 1;
-    }
-    return acc;
-  }, {});
-
-  // Calculate completed count by intersecting mandatory templates with user progress
-  const subModuleCompletedCount = (mandatoryCounts || []).reduce((acc: any, q) => {
-    if (q.sub_module_id && completedQuestIds.has(q.id)) {
-       acc[q.sub_module_id] = (acc[q.sub_module_id] || 0) + 1;
-    }
-    return acc;
-  }, {});
-
-  const completedIds = new Set();
-  Object.keys(subModuleMandatoryTotal).forEach(smId => {
-    if ((subModuleCompletedCount[smId] || 0) >= (subModuleMandatoryTotal[smId] || 0) && subModuleMandatoryTotal[smId] > 0) {
-      completedIds.add(smId);
-    }
-  });
-
-  // Calculate total vs completed for each sub_module
+  // Fetch all quest templates to calculate total and completed counts per sub-module
   const { data: allCoreQuests } = await supabase
     .from("module_quest_templates")
     .select("id, sub_module_id")
     .in("sub_module_id", modules.flatMap(m => m.sub_modules.map((sm: any) => sm.id)));
 
+  // Calculate total quests per sub-module
   const subModuleCoreTotal = (allCoreQuests || []).reduce((acc: any, q) => {
     if (q.sub_module_id) {
        acc[q.sub_module_id] = (acc[q.sub_module_id] || 0) + 1;
@@ -204,37 +176,95 @@ export async function getFieldLearningPath(fieldId: string) {
     return acc;
   }, {});
 
-  // 4. Compute lock status linearly
-  const processedModules = modules.map(module => {
-    const processedSubModules = (module.sub_modules || [])
-      .sort((a: any, b: any) => a.order_index - b.order_index)
-      .map((sm: any) => {
-        const isCompleted = completedIds.has(sm.id);
-        
-        // Strict unlock rule: Unlocked ONLY if user level >= unlock_field_level
-        // We do NOT require previous sub-modules to be completed.
-        const isUnlocked = currentLevel >= (sm.unlock_field_level || 0);
-        
-        return {
-          ...sm,
-          isCompleted,
-          isUnlocked,
-          questStats: {
-            completed: subModuleCompletedCount[sm.id] || 0,
-            total: subModuleCoreTotal[sm.id] || 0
-          }
-        };
-      });
+  // Calculate completed quests per sub-module
+  const subModuleCompletedCount = (allCoreQuests || []).reduce((acc: any, q) => {
+    if (q.sub_module_id && completedQuestIds.has(q.id)) {
+       acc[q.sub_module_id] = (acc[q.sub_module_id] || 0) + 1;
+    }
+    return acc;
+  }, {});
+
+  // 4. Compute lock status sequentially (two-pass approach)
+  const modulesWithSubModuleStatus = modules.map(module => {
+    // First pass: Calculate completion state for all sub-modules
+    const sortedSubModules = (module.sub_modules || [])
+      .sort((a: any, b: any) => a.order_index - b.order_index);
+    
+    const subModulesWithCompletion = sortedSubModules.map((sm: any) => {
+      const totalQuests = subModuleCoreTotal[sm.id] || 0;
+      const completedQuests = subModuleCompletedCount[sm.id] || 0;
+      const completionPercentage = totalQuests > 0 
+        ? Math.round((completedQuests / totalQuests) * 100) 
+        : 0;
+      const isCompleted = completionPercentage === 100;
+      
+      return {
+        ...sm,
+        isCompleted,
+        completionPercentage,
+        questStats: {
+          completed: completedQuests,
+          total: totalQuests
+        }
+      };
+    });
+
+    // Second pass: Determine unlock status based on previous sub-module
+    const processedSubModules = subModulesWithCompletion.map((sm: any, index: number) => {
+      // SEQUENTIAL UNLOCK LOGIC:
+      // - First sub-module (index 0) is always unlocked
+      // - Subsequent sub-modules unlock ONLY when previous is 100% complete
+      let isUnlocked = false;
+      if (index === 0) {
+        isUnlocked = true;
+      } else {
+        const previousSubModule = subModulesWithCompletion[index - 1];
+        isUnlocked = previousSubModule?.isCompleted === true;
+      }
+      
+      return {
+        ...sm,
+        isUnlocked
+      };
+    });
 
     const moduleStats = processedSubModules.reduce((acc: { completed: number, total: number }, sm: any) => ({
       completed: acc.completed + sm.questStats.completed,
       total: acc.total + sm.questStats.total
     }), { completed: 0, total: 0 });
 
+    // Determine if the *module* itself is complete (all sub-modules complete)
+    // A module with 0 sub-modules is considered incomplete by default or complete?
+    // Let's assume complete if it has 0 sub-modules, or strictly check completion.
+    // If stats.total > 0 and stats.completed === stats.total, then complete.
+    // If total is 0, let's treat as incomplete to avoid auto-unlocking empty modules in a potentially weird way,
+    // OR treat as complete if we want to skip empty placeholders. 
+    // Given the prompt "moduleCompleted = completedSubModules === totalSubModules", implies count based.
+    const isModuleCompleted = moduleStats.total > 0 && moduleStats.completed === moduleStats.total;
+
     return {
       ...module,
       sub_modules: processedSubModules,
-      moduleStats
+      moduleStats,
+      isModuleCompleted
+    };
+  });
+
+  // 5. Compute MODULE unlock status sequentially
+  // Module 0 is unlocked. Module N unlocked if Module N-1 is complete.
+  const processedModules = modulesWithSubModuleStatus.map((module, index) => {
+    let isUnlocked = false;
+    if (index === 0) {
+      isUnlocked = true;
+    } else {
+      const previousModule = modulesWithSubModuleStatus[index - 1];
+      isUnlocked = previousModule.isModuleCompleted === true;
+    }
+
+    // Pass the isUnlocked flag down to the module object
+    return {
+      ...module,
+      isUnlocked
     };
   });
 

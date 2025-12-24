@@ -73,6 +73,21 @@ export async function POST(req: Request) {
     // Core quests are atomic - only track completion, not progress
     // Only insert when quest is completed (progress >= 100)
     if (progress >= 100) {
+      // IDEMPOTENCY CHECK: Check if already completed to prevent duplicate XP
+      const { data: existingProgress } = await supabase
+        .from("user_module_quest_progress")
+        .select("completed")
+        .eq("user_id", user.id)
+        .eq("module_quest_template_id", quest_id)
+        .single();
+
+      // If already completed, return early (idempotent - no duplicate XP)
+      if (existingProgress?.completed === true) {
+        console.log(`Quest ${quest_id} already completed, skipping XP award`);
+        return NextResponse.json({ success: true, alreadyCompleted: true });
+      }
+
+      // Insert completion record
       const { error: progressError } = await supabase
         .from("user_module_quest_progress")
         .upsert(

@@ -57,6 +57,7 @@ export function QuestSystem({ userId, apiUrl, allowGeneration = true, variant = 
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [limitReached, setLimitReached] = useState(false);
+  const [completingQuests, setCompletingQuests] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const supabase = createClientComponentClient();
   const router = useRouter();
@@ -148,7 +149,16 @@ export function QuestSystem({ userId, apiUrl, allowGeneration = true, variant = 
   };
 
   const updateQuestProgress = async (questId: string, progress: number) => {
+    // Prevent duplicate submissions
+    if (completingQuests.has(questId)) {
+      console.log(`Quest ${questId} is already being completed, ignoring duplicate click`);
+      return;
+    }
+
     try {
+      // Mark quest as being completed
+      setCompletingQuests(prev => new Set(prev).add(questId));
+
       const response = await fetch("/api/quests/progress", {
         method: "POST",
         headers: {
@@ -156,10 +166,19 @@ export function QuestSystem({ userId, apiUrl, allowGeneration = true, variant = 
         },
         body: JSON.stringify({ quest_id: questId, progress }),
       });
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to update quest progress");
       }
+
+      const data = await response.json();
+      
+      // If already completed (idempotent response), just refresh UI
+      if (data.alreadyCompleted) {
+        console.log(`Quest ${questId} was already completed`);
+      }
+
       await fetchUserProgress();
       router.refresh();
     } catch (err) {
@@ -168,6 +187,13 @@ export function QuestSystem({ userId, apiUrl, allowGeneration = true, variant = 
         title: "Error",
         description: "Failed to update quest progress. Please try again.",
         variant: "destructive",
+      });
+    } finally {
+      // Remove quest from completing set
+      setCompletingQuests(prev => {
+        const next = new Set(prev);
+        next.delete(questId);
+        return next;
       });
     }
   };
@@ -300,9 +326,10 @@ export function QuestSystem({ userId, apiUrl, allowGeneration = true, variant = 
                       {!isCompleted ? (
                         <Button
                           onClick={() => updateQuestProgress(quest.id, 100)}
-                          className="bg-white text-black hover:bg-white/90 font-bold"
+                          disabled={completingQuests.has(quest.id)}
+                          className="bg-white text-black hover:bg-white/90 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Complete
+                          {completingQuests.has(quest.id) ? "Completing..." : "Complete"}
                         </Button>
                       ) : (
                         <Button
@@ -374,9 +401,10 @@ export function QuestSystem({ userId, apiUrl, allowGeneration = true, variant = 
                         Math.min(progress + 50, 100)
                       )
                     }
-                    className="w-full border border-white text-white hover:bg-white hover:text-black"
+                    disabled={completingQuests.has(quest.id)}
+                    className="w-full border border-white text-white hover:bg-white hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Update Progress
+                    {completingQuests.has(quest.id) ? "Updating..." : "Update Progress"}
                   </Button>
                 )}
               </CardFooter>
