@@ -20,13 +20,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "sub_module_id is required" }, { status: 400 });
     }
 
-    // Fetch core quests for the submodule
+    // Fetch core quests from templates (Global Source)
     const { data: quests, error: questError } = await supabase
-      .from("quests")
+      .from("module_quest_templates")
       .select("*")
-      .eq("user_id", user.id)
       .eq("sub_module_id", subModuleId)
-      .eq("quest_category", "core")
       .order("created_at", { ascending: true });
 
     if (questError) {
@@ -36,7 +34,7 @@ export async function GET(req: Request) {
 
     // Return in the format expected by QuestSystem
     return NextResponse.json({
-      dailyQuests: quests || [],
+      dailyQuests: quests?.map(q => ({ ...q, id: q.id, status: 'active', quest_category: 'core' })) || [],
       penaltyQuests: [], // Core quests generally don't have penalty system active in this context mostly
     });
   } catch (error) {

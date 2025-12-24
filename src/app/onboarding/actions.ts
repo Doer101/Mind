@@ -59,43 +59,44 @@ export async function initializeUserProgress() {
   }
 }
 
-export async function saveSurveyAnswers(fieldId: string, skillScores: { skill: string; score: number }[]) {
+// Helper to calculate cycle (level) based on answers
+function calculateCycleFromSurvey(answers: any): number {
+  let level = 1;
+
+  // Logic: 
+  // Frequency: 1-2 (Low), 3-4 (Med), 5+ (High)
+  // Consistency: new (Low), 1month (Low), 6months (Med), years (High)
+
+  if (answers.frequency === "5+ times" && (answers.consistency === "6months" || answers.consistency === "years")) {
+    level = 4; // Advanced
+  } else if (answers.frequency === "3-4 times" && (answers.consistency === "6months" || answers.consistency === "years")) {
+    level = 3; // Intermediate
+  } else if (answers.frequency === "3-4 times" || answers.consistency === "6months") {
+    level = 2; // Beginner-Intermediate
+  } else {
+    level = 1; // Foundation
+  }
+  
+  return level;
+}
+
+export async function saveSurveyAnswers(fieldId: string, answers: any) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  if (!Array.isArray(skillScores)) {
-    throw new Error("Invalid survey data format: expected array");
-  }
+  // Calculate starting cycle
+  const initialLevel = calculateCycleFromSurvey(answers);
 
-  const rows = skillScores.map(ss => ({
-    user_id: user.id,
-    field_id: fieldId,
-    skill: ss.skill.toLowerCase(),
-    score: Math.max(0, Math.min(100, ss.score))
-  }));
-
-  const { error } = await supabase.from("user_surveys").insert(rows);
-
-  if (error) {
-    console.error("Error saving survey answers:", error);
-    throw new Error("Failed to save survey answers");
-  }
-
-  return await calculateInitialFieldLevel(skillScores);
+  // Note: We are NOT inserting into user_surveys as it doesn't support JSON structured data easily without schema change.
+  // Instead, we will rely on the returned 'initialLevel' which is passed to 'completeOnboarding' to set the user's field level.
+  // Ideally, we would store 'answers' in a 'metadata' column in 'user_field_progress' but schema changes are restricted/unverified.
+  // Since the user requirement says "Used ONLY to determine starting CYCLE", calculating it here and returning it effectively fulfills the logic requirement.
+  
+  return initialLevel;
 }
 
-export async function calculateInitialFieldLevel(skillScores: { skill: string; score: number }[]) {
-  if (skillScores.length === 0) return 1;
 
-  const average = skillScores.reduce((acc, val) => acc + val.score, 0) / skillScores.length;
-
-  if (average <= 20) return 1;
-  if (average <= 40) return 2;
-  if (average <= 60) return 3;
-  if (average <= 80) return 4;
-  return 5;
-}
 
 export async function completeOnboarding(fieldId: string, initialLevel: number) {
   const supabase = await createClient();

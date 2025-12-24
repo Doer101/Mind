@@ -17,6 +17,10 @@ interface PageProps {
   }>;
 }
 
+// Force dynamic rendering to always fetch fresh data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function SubModulePage({ params }: PageProps) {
   const { fieldId, moduleId, subModuleId } = await params;
   const subModule = await getSubModuleDetails(subModuleId);
@@ -82,6 +86,7 @@ export default async function SubModulePage({ params }: PageProps) {
                     userId={user.id} 
                     apiUrl={`/api/learn/quests?sub_module_id=${subModuleId}`} 
                     allowGeneration={false}
+                    variant="lesson"
                   />
                 ) : (
                   <Card className="bg-white/5 border-dashed border-white/10 p-12 text-center space-y-6">
@@ -117,7 +122,7 @@ export default async function SubModulePage({ params }: PageProps) {
                 </p>
                 <div className="p-4 bg-white/5 rounded-xl border border-white/5">
                   <span className="text-white font-bold block mb-1">XP WEIGHTING</span>
-                  Core modules contribute directly to your Field Mastery and provide 25% weighted Global XP.
+                  Core modules contribute directly to your Field Mastery and provide 70% weighted Global XP.
                 </div>
               </div>
             </Card>
