@@ -14,7 +14,7 @@ async function callDeepSeekAPI(messages: any[]) {
       provider: "hyperbolic",
       model: "deepseek-ai/DeepSeek-R1-0528",
       messages: messages,
-      max_tokens: 250,
+      max_tokens: 1024,
       temperature: 0.7,
     });
     return chatCompletion.choices[0].message.content;
@@ -214,8 +214,15 @@ IMPORTANT: Use the EXACT task words from user, not "task description"!`,
       }
     }
 
-    const cleanResponse = finalResponse
-      .replace(/<think>[\s\S]*?<\/think>/g, "")
+    let cleanResponse = finalResponse.replace(/<think>[\s\S]*?<\/think>/gi, "");
+    
+    // Handle unclosed <think> tag
+    const unclosedThinkIndex = cleanResponse.toLowerCase().lastIndexOf("<think>");
+    if (unclosedThinkIndex !== -1) {
+      cleanResponse = cleanResponse.slice(0, unclosedThinkIndex);
+    }
+
+    cleanResponse = cleanResponse
       .replace(/\*\*[\s\S]*?\*\*/g, "")
       .replace(/__[\s\S]*?__/g, "")
       .replace(/```[\s\S]*?```/g, "")

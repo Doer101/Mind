@@ -14,6 +14,8 @@ async function callDeepSeekAPI(messages: any[]) {
       provider: "hyperbolic",
       model: "deepseek-ai/DeepSeek-R1-0528",
       messages: messages,
+      max_tokens: 1024,
+      temperature: 0.7,
     });
     return chatCompletion.choices[0].message.content;
   } catch (error) {
@@ -144,9 +146,17 @@ Prompt: Write about a moment when you felt understood...`,
   const prompt = await callDeepSeekAPI(messages);
 
   // Clean up the prompt
-  const cleanPrompt = prompt
-    ? prompt
-        .replace(/<think>[\s\S]*?<\/think>/g, "") // Remove thinking process
+  let cleanPrompt = prompt || "No prompt generated";
+  
+  cleanPrompt = cleanPrompt.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  
+  // Handle unclosed <think> tag
+  const unclosedThinkIndex = cleanPrompt.toLowerCase().lastIndexOf("<think>");
+  if (unclosedThinkIndex !== -1) {
+    cleanPrompt = cleanPrompt.slice(0, unclosedThinkIndex);
+  }
+
+  cleanPrompt = cleanPrompt
         .replace(/^prompt:?\s*/i, "") // Remove "Prompt:" prefix
         .replace(/^write about:?\s*/i, "") // Remove "Write about:" prefix
         .replace(/^describe:?\s*/i, "") // Remove "Describe:" prefix
@@ -154,8 +164,7 @@ Prompt: Write about a moment when you felt understood...`,
         .replace(/^think about:?\s*/i, "") // Remove "Think about:" prefix
         .replace(/\n/g, " ") // Remove newlines
         .replace(/\s+/g, " ") // Normalize spaces
-        .trim()
-    : "No prompt generated";
+        .trim();
 
   // Save the prompt to the database
   const supabase = await createClient();
