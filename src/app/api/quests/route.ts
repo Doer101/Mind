@@ -53,7 +53,7 @@ async function callDeepSeekAPI(messages: any[]) {
       model: "deepseek-ai/DeepSeek-R1-0528",
       messages,
       temperature: 0.7,
-      max_tokens: 500,
+      max_tokens: 2048,
       top_p: 0.95,
     });
     return chatCompletion.choices?.[0]?.message?.content ?? null;
@@ -102,7 +102,14 @@ const VALID_QUEST_TYPES = ["creative", "journal", "mindset", "reflection", "chal
 
 // --- Small helpers ---
 function stripThinkTags(s: string): string {
-  return (s || "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  if (!s) return "";
+  let cleaned = s.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  // If we still have an unclosed <think> tag (due to truncation), remove everything after it
+  const unclosedThinkIndex = cleaned.toLowerCase().lastIndexOf("<think>");
+  if (unclosedThinkIndex !== -1) {
+    cleaned = cleaned.slice(0, unclosedThinkIndex).trim();
+  }
+  return cleaned;
 }
 
 function extractJsonArraySlice(raw: string): string | null {
